@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<launch>
+  <group>
+
+    <!-- Load the URDF -->
+    <param name="robot_description" command="$(find xacro)/xacro  --inorder $(find my_truckie)/urdf/truck.urdf" />
+
+    <!-- Load Gazebo with the world file -->
+    <arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+      <arg name="world_name" value="$(arg world_file)" />
+      <arg name="use_sim_time" value="true"/>
+    </include>
+
+    <arg name="x" default="20"/>
+    <arg name="y" default="0"/>
+    <arg name="z" default="0"/>
+
+    <!-- Spawn the robot model into Gazebo -->
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+      args="-urdf -param robot_description -model truck -x $(arg x) -y $(arg y) -z $(arg z) -Y 0">
+    </node>
+
+    <!-- Load controllers -->
+    <rosparam file="$(find my_truckie)/config/joints.yaml" command="load" />
+
+    <!-- Launch the controllers -->
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+      output="screen"
+      args="joint_state_controller
+      hitch_joint_position_controller
+      --timeout 60">
+    </node>
+    <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+      output="screen" ns="/truck"
+      args="- -namespace=/truck
+      joint_state_controller
+      hitch_joint_position_controller
+      - -timeout 60">
+    </node> -->
+  
+  </group>
+
+</launch>

@@ -1,0 +1,15 @@
+<launch>
+  <!-- Load your URDF -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/truckie.urdf" />
+
+  <!-- Spawn your robot in Gazebo -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-urdf -param robot_description -model my_truckie">
+  </node>
+
+  <!-- Start rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/rviz/my_truckie.rviz"/>
+
+  <!-- Start the teleop node -->
+  <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen"/>
+</launch>

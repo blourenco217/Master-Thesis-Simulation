@@ -1,0 +1,17 @@
+<!-- roslaunch my_truckie control.launch steering_kp:=1.0 steering_ki:=0.1 steering_kd:=0.0 throttle_kp:=0.5 throttle_ki:=0.05 throttle_kd:=0.0 -->
+
+<launch>
+    <!-- Load parameters from the config file -->
+    <rosparam command="load" file="$(find my_truckie)/config/pid_params.yaml" />
+
+    <!-- Start the truck control node -->
+    <node name="truck_controller_node" pkg="my_truck_control" type="truck_controller_node" output="screen">
+        <param name="steering_pid/kp" value="$(arg steering_kp)" />
+        <param name="steering_pid/ki" value="$(arg steering_ki)" />
+        <param name="steering_pid/kd" value="$(arg steering_kd)" />
+        <param name="throttle_pid/kp" value="$(arg throttle_kp)" />
+        <param name="throttle_pid/ki" value="$(arg throttle_ki)" />
+        <param name="throttle_pid/kd" value="$(arg throttle_kd)" />
+    </node>
+
+</launch>

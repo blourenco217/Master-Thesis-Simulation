@@ -1,0 +1,11 @@
+# PID parameters for steering control
+steering_pid:
+  kp: 1.0
+  ki: 0.1
+  kd: 0.0
+
+# PID parameters for throttle control
+throttle_pid:
+  kp: 1.0
+  ki: 0.1
+  kd: 0.0

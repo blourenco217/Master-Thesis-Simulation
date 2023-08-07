@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<launch>
+    <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/truck.urdf" />
+
+    <!-- Launch the TF broadcaster for tractor -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="tractor_tf_broadcaster"
+            args="0 0 0 0 0 0 map tractor" />
+
+    <!-- Launch the TF broadcaster for trailer -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="trailer_tf_broadcaster"
+            args="0 0 0 0 0 0 map trailer" />
+    
+    <!-- joint values -->
+    <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+        <param name="use_gui" value="True"/>
+    </node> -->
+
+    <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+        <param name="/use_gui" value="false"/> 
+        <rosparam param="/source_list">[/move_group/fake_controller_joint_states]</rosparam>
+    </node> -->
+
+    <node name="joint_state_publisher_gui_node" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
+        <!-- You can specify any necessary arguments here -->
+    </node>
+    
+
+    <!-- Launch robot_state_publisher to publish URDF and joint states -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+    
+    <!-- Show in Rviz-->
+    <node name="rviz" pkg="rviz" type="rviz">
+        <remap from="/tf" to="/tf" />
+        <param name="use_sim_time" value="false" />
+        <param name="rviz/frame_name" value="map" />
+        <param name="robot_description" value="$(find my_truckie)/urdf/truck.urdf" />
+        <param name="rviz/default_plugin" value="rviz/RobotModel" />
+    </node>
+
+</launch>
