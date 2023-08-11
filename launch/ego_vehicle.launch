@@ -29,6 +29,14 @@
   args="-urdf -model ego_vehicle -param robot_description"
   respawn="false" output="screen"/>
 
+  <!-- Launch the controllers -->
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen"
+        args="joint_state_controller
+        hitch_joint_position_controller
+        --timeout 60">
+    </node>
+
   <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/rviz/mybot.rviz" required="true"/> -->
 
 </launch>
