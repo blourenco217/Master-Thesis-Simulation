@@ -1,0 +1,36 @@
+<launch>
+
+  <arg name="x" default="0"/>
+  <arg name="y" default="3"/>
+  <arg name="z" default="0"/>
+
+  <!-- Set ROS package and URDF file path -->
+  <arg name="urdf_file" default="$(find my_truckie)/urdf/npc.urdf"/>
+
+  <!-- Load robot_description parameter from the URDF file -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(arg urdf_file)" />
+
+  <!-- Start Gazebo with the robot model -->
+  <!-- <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find gazebo_ros)/worlds/empty.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+  </include> -->
+
+  <!-- Load Gazebo with the world file -->
+  <arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world_file)" />
+    <arg name="use_sim_time" value="true"/>
+  </include>
+
+  <!-- Spawn the robot model in Gazebo -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+  args="-urdf -model npc -param robot_description -x $(arg x) -y $(arg y) -z $(arg z) -Y 0"
+  respawn="false" output="screen"/>
+
+  <!-- Optionally launch Rviz for visualization -->
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/path/to/your_rviz_config.rviz" respawn="false" output="screen"/> -->
+</launch>

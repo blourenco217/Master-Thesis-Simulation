@@ -32,7 +32,7 @@ class VehicleController:
 
 if __name__ == '__main__':
     try:
-        controller = VehicleController()
+        controller = VehicleController ()
         controller.move_straight()
     except rospy.ROSInterruptException:
         pass

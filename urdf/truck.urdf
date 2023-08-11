@@ -4,6 +4,37 @@
   <!-- Define a parameter for the scale -->
   <xacro:property name="scale_factor" value="6.0" />
 
+  <!-- Define a Base Link -->
+  <link name="base_link">
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+  
+  <joint name="base_link_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="tractor"/>
+    <origin xyz="1.45 0 0" rpy="0 0 1.57"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <!-- Joint Controller for Base Link Connection -->
+  <transmission name="trans_base_link">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="base_link_joint">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="motor_base_link">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+
+  <gazebo reference="base_link_joint">
+    <disableFixedJointLumping>true</disableFixedJointLumping>
+  </gazebo>
+
   <!-- Tractor -->
   <link name="tractor">
     <visual>

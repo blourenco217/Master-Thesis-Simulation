@@ -2,6 +2,10 @@
 <launch>
     <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/truck.urdf" />
 
+    
+    <node pkg="tf2_ros" type="static_transform_publisher" name="baselink_tf_broadcaster"
+            args="0 0 0 0 0 0 map base_link" />
+
     <!-- Launch the TF broadcaster for tractor -->
     <node pkg="tf2_ros" type="static_transform_publisher" name="tractor_tf_broadcaster"
             args="0 0 0 0 0 0 map tractor" />
@@ -11,18 +15,17 @@
             args="0 0 0 0 0 0 map trailer" />
     
     <!-- joint values -->
-    <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
         <param name="use_gui" value="True"/>
-    </node> -->
+    </node>
 
     <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
         <param name="/use_gui" value="false"/> 
         <rosparam param="/source_list">[/move_group/fake_controller_joint_states]</rosparam>
     </node> -->
 
-    <node name="joint_state_publisher_gui_node" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
-        <!-- You can specify any necessary arguments here -->
-    </node>
+    <!-- <node name="joint_state_publisher_gui_node" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui">
+    </node> -->
     
 
     <!-- Launch robot_state_publisher to publish URDF and joint states -->

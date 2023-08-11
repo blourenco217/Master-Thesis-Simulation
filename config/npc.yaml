@@ -1,0 +1,12 @@
+# Save this as "diff_drive_controller.yaml" inside the "config" folder
+diff_drive_controller:
+  type: "diff_drive_controller/DiffDriveController"
+  left_wheel: "left_wheel_joint"
+  right_wheel: "right_wheel_joint"
+  left_wheel_radius: 0.5
+  right_wheel_radius: 0.5
+  wheel_separation: 1.0
+  wheel_sep_multiplier: 1.0
+  left_wheel_joint: "left_wheel_joint"
+  right_wheel_joint: "right_wheel_joint"
+  publish_rate: 50.0

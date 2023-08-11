@@ -69,6 +69,7 @@
   <exec_depend>rospy</exec_depend>
   <exec_depend>control_toolbox</exec_depend>
   <exec_depend>message_runtime</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
 
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>joint_state_publisher</exec_depend>

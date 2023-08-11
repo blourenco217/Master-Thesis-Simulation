@@ -6,14 +6,14 @@
     <param name="robot_description" command="$(find xacro)/xacro  --inorder $(find my_truckie)/urdf/truck.urdf" />
 
     <!-- Load Gazebo with the world file -->
-    <arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
+    <arg name="world_file" default="$(find my_truckie)/worlds/empty.world" />
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
       <arg name="world_name" value="$(arg world_file)" />
       <arg name="use_sim_time" value="true"/>
     </include>
 
     <arg name="x" default="0"/>
-    <arg name="y" default="10"/>
+    <arg name="y" default="0"/>
     <arg name="z" default="0"/>
 
     <!-- Spawn the robot model into Gazebo -->
@@ -29,16 +29,9 @@
       output="screen"
       args="joint_state_controller
       hitch_joint_position_controller
+      base_link_joint_position_controller
       --timeout 60">
     </node>
-    <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
-      output="screen" ns="/truck"
-      args="- -namespace=/truck
-      joint_state_controller
-      hitch_joint_position_controller
-      - -timeout 60">
-    </node> -->
-  
-  </group>
 
+  </group>
 </launch>
