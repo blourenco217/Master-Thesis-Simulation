@@ -1,15 +1,28 @@
 <launch>
-  <!-- Load your URDF -->
-  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/truckie.urdf" />
+  <!--Gazebo empty world launch file-->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    	<arg name="debug" value="false" />
+    	<arg name="gui" value="true" />
+    	<arg name="paused" value="false"/>
+    	<arg name="use_sim_time" value="false"/>
+    	<arg name="headless" value="false"/>
+    	<arg name="verbose" value="true"/>
+  </include>
 
-  <!-- Spawn your robot in Gazebo -->
-  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
-    args="-urdf -param robot_description -model my_truckie">
-  </node>
+  <!--Robot Description from URDF-->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/mybot.xacro"/>
+  <param name="use_gui" value="true"/>
 
-  <!-- Start rviz -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/rviz/my_truckie.rviz"/>
+  <!--Nodes-->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
+  <!-- <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/> -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
-  <!-- Start the teleop node -->
-  <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen"/>
+  <!-- <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -param robot_description -model mybot -verbose" output="screen"/> -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+  args="-urdf -model mybot -param robot_description"
+  respawn="false" output="screen"/>
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/rviz/mybot.rviz" required="true"/>
+
 </launch>
