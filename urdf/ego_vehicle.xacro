@@ -139,5 +139,27 @@
         <child link="sensor_laser" />
     </joint>
 
+    <!-- Joint Controller for Hitch Joint -->
+    <transmission name="trans_hitch_joint">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="hitch_joint">
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="motor_hitch_joint">
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <!-- <plugin name="object_controller" filename="libgazebo_ros_planar_move.so">
+        <commandTopic>cmd_vel</commandTopic>
+        <odometryTopic>odom</odometryTopic>
+        <odometryFrame>odom</odometryFrame>
+        <odometryRate>50.0</odometryRate>
+        <robotBaseFrame>base_footprint</robotBaseFrame>
+    </plugin> -->
+
+
+
 
 </robot>
