@@ -75,12 +75,19 @@
     </link>
 
     <!-- Tractor-trailer Joint -->
+    <!-- <joint name="hitch_joint" type="continuous">
+        <parent link="tractor"/>
+        <child link="trailer"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="1000" velocity="1000" lower="-1.5708" upper="1.5708"/>
+    </joint> -->
     <joint name="hitch_joint" type="revolute">
         <parent link="tractor"/>
         <child link="trailer"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <axis xyz="0 0 1"/>
-        <limit effort="100" velocity="1.0" lower="-1.5708" upper="1.5708"/>
+        <limit effort="1000" velocity="1000.0" lower="-1.5708" upper="1.5708"/>
     </joint>
 
     <!-- Trailer -->

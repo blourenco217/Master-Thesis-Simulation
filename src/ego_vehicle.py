@@ -12,6 +12,7 @@ from std_msgs.msg import Float64
 
 class EgoVehicleController(object):
     def __init__(self, vehicle):
+        
         self.vehicle = vehicle
         rospy.init_node('ego_vehicle_controller', anonymous=True)
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
@@ -28,6 +29,8 @@ class EgoVehicleController(object):
 
         self.position = (0.0, 0.0)  # Initialize the position
         self.hitch_angle = 0
+
+        self.reference = self.position[0]
 
         rospy.loginfo("Ego-Vehicle Controller Initialized.")
     
@@ -50,9 +53,13 @@ class EgoVehicleController(object):
 
             X0 = ca.repmat(x0, 1, self.controller.N+1)
 
+            self.reference += 1
             for i in range(self.controller.N):
-                x_ref = 100
-                y_ref = 10
+                t_predict = self.reference + i * self.controller.dt 
+                x_ref = 200
+                # x_ref = self.reference
+                
+                y_ref = 7.5
                 # if mpc_iter > 200:
                 #     y_ref = 1.75
                 theta_ref = 0
@@ -80,9 +87,19 @@ class EgoVehicleController(object):
 
             u0 = u
             self.twist_cmd.linear.x = u[0, 0]
+            # self.twist_cmd.linear.x = u[0, 0] * ca.cos(self.controller.args['x0'][4])
+            # self.twist_cmd.linear.y =  u[1, 0] * ca.sin(self.controller.args['x0'][4])
             self.twist_cmd.angular.z = u[1, 0]
+            # self.twist_cmd.linear.x = self.controller.args['x0'][0]
+            # self.twist_cmd.linear.y = self.controller.args['x0'][1]
+            # self.twist_cmd.angular.z = self.controller.args['x0'][4]
+
 
             self.cmd_vel_pub.publish(self.twist_cmd)
+            command = Float64()
+            # command.data = self.controller.args['x0'][2]
+            command.data = self.controller.args['x0'][4] - self.controller.args['x0'][5]
+            self.hitch_angle_pub.publish(command)
 
             self.rate.sleep()
 
@@ -116,12 +133,12 @@ def control_hitch_joint():
 
     while not rospy.is_shutdown():
         command = Float64()
-        command.data = -1.5
+        command.data = 1
         pub.publish(command)
         rate.sleep()
 
 if __name__ == '__main__':
-    segments = [(5.0, 2.0),(20.0, 0.0)]
+    segments = [(3.5, 0.0),(6.0, 0.0)]
     vehicle = vehicle_model(segments)
     try:
         node = EgoVehicleController(vehicle)

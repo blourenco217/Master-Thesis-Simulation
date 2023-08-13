@@ -160,7 +160,7 @@ class mpc(object):
             ubx[i:self.nx*(self.N+1):self.nx] = ca.inf      # betha_i upper bound
 
         lbx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] =  -ca.inf      # lower bound for steering
-        ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = ca.inf        # upper bound for steering
+        ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = 5        # upper bound for steering
 
         lbx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = -ca.inf   # lower bound for throttle    
         ubx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = ca.inf    # upper bound for throttle

@@ -1,14 +1,14 @@
 # publish all joint states -----------------------------------
 joint_state_controller:
   type: joint_state_controller/JointStateController
-  publish_rate: 50
+  publish_rate: 100
 
 
 # publish joint trajectory action -----------------------------
 hitch_joint_position_controller:
   type: effort_controllers/JointPositionController
   joint: hitch_joint
-  pid: {p: 100.0, i: 0.01, d: 10.0}
+  pid: {p: 300.0, i: 0.02, d: 10.0}
 
 # publish joint trajectory action -----------------------------
 base_link_joint_position_controller:
