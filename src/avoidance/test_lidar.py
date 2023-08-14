@@ -7,31 +7,123 @@ from tf.transformations import euler_from_quaternion
 from scipy.linalg import fractional_matrix_power
 from numpy.linalg import inv, norm
 import numpy.linalg as la
+from numpy import linalg
 
+def mvee(P, tolerance=0.01):
+    """ Find the minimum volume ellipsoid which holds all the points
+    
+    Based on work by Nima Moshtagh
+    http://www.mathworks.com/matlabcentral/fileexchange/9542
+    and also by looking at:
+    http://cctbx.sourceforge.net/current/python/scitbx.math.minimum_covering_ellipsoid.html
+    Which is based on the first reference anyway!
+    
+    Here, P is a numpy array of N dimensional points like this:
+    P = [[x,y,z,...], <-- one point per line
+            [x,y,z,...],
+            [x,y,z,...]]
+    
+    Returns:
+    (center, radii, rotation)
+    
+    """
+    (N, d) = np.shape(P)
+    d = float(d)
 
-def mvee(points, tol=0.0001):
-    """
-    Finds the ellipse equation in "center form"
-    (x-c).T * A * (x-c) = 1
-    """
-    N, d = points.shape
-    Q = np.column_stack((points, np.ones(N))).T
-    err = tol+1.0
-    u = np.ones(N)/N
-    while err > tol:
-        # assert u.sum() == 1 # invariant
-        X = np.dot(np.dot(Q, np.diag(u)), Q.T)
-        M = np.diag(np.dot(np.dot(Q.T, la.inv(X)), Q))
-        jdx = np.argmax(M)
-        step_size = (M[jdx]-d-1.0)/((d+1)*(M[jdx]-1.0))
-        new_u = (1-step_size)*u
-        new_u[jdx] += step_size
-        err = la.norm(new_u-u)
+    # Q will be our working array
+    Q = np.vstack([np.copy(P.T), np.ones(N)]) 
+    QT = Q.T
+    
+    # initializations
+    err = 1.0 + tolerance
+    u = (1.0 / N) * np.ones(N)
+
+    # Khachiyan Algorithm
+    while err > tolerance:
+        V = np.dot(Q, np.dot(np.diag(u), QT))
+        M = np.diag(np.dot(QT , np.dot(linalg.inv(V), Q)))    # M the diagonal vector of an NxN matrix
+        j = np.argmax(M)
+        maximum = M[j]
+        step_size = (maximum - d - 1.0) / ((d + 1.0) * (maximum - 1.0))
+        new_u = (1.0 - step_size) * u
+        new_u[j] += step_size
+        err = np.linalg.norm(new_u - u)
         u = new_u
-    c = np.dot(u, points)
-    A = la.inv(np.dot(np.dot(points.T, np.diag(u)), points)
-               - np.multiply.outer(c, c))/d
-    return A, c
+
+    # center of the ellipse 
+    center = np.dot(P.T, u)
+
+    # the A matrix for the ellipse
+    A = linalg.inv(
+                    np.dot(P.T, np.dot(np.diag(u), P)) - 
+                    np.array([[a * b for b in center] for a in center])
+                    ) / d
+    
+    U, s, rotation = linalg.svd(A)
+    radii = 1.0/np.sqrt(s)
+    return (center, radii, rotation)
+
+
+def quadratic_equation(a, b, c):
+    # print('a, b, c', a, b, c)
+    # print('b**2 - 4*a*c', b**2 - 4*a*c)
+    if b**2 - 4*a*c < 0:
+        return []
+    else:
+        return [(-b + np.sqrt(b**2 - 4*a*c))/(2*a), (-b - np.sqrt(b**2 - 4*a*c))/(2*a)]
+
+
+def line_ellipse_intersection(center, radii, rotation, beta):
+
+    x_0, y_0 = center[0], center[1]
+    a, b = radii[0], radii[1]
+    alpha = rotation
+
+
+    A = (np.cos(alpha)**2)/a**2 + (np.sin(alpha)**2)/b**2
+    B = 2*np.cos(alpha)*np.sin(alpha)*(1/a**2 - 1/b**2)
+    C = (np.sin(alpha)**2)/a**2 + (np.cos(alpha)**2)/b**2
+
+
+    eq_a = A + B*np.tan(beta) + C*np.tan(beta)**2
+    eq_b = - 2*A*x_0 - B*(x_0*np.tan(beta) + y_0) - 2*C*y_0*np.tan(beta)
+    eq_c = A*x_0**2 + B*x_0*y_0 + C*y_0**2 - 1
+    solution_x = quadratic_equation(eq_a, eq_b, eq_c)
+    solution_y = [np.tan(beta)*x + y_0 for x in solution_x]
+    solutions = [[x, y] for x, y in zip(solution_x, solution_y)]
+    print('solutions', solutions)
+
+    if len(solutions) == 0:
+        return []
+    elif np.linalg.norm(np.array(solutions[0]) - np.array(solutions[1])) < 1e-3:
+        return [solutions[0]]
+    else:
+        return solutions
+
+
+
+def retrieve_leftmost_boundary(center, radii, rotation):
+    theta_min = 0
+    theta_max = np.pi / 2
+    leftmost_boundary = [-float('inf'), 0]
+
+    while theta_max - theta_min > 1e-6:
+        theta_m = (theta_min + theta_max) / 2
+        print(theta_m)
+
+
+        intersection_points = line_ellipse_intersection(center, radii, rotation, theta_m)
+
+        if len(intersection_points) == 1:
+            leftmost_boundary = intersection_points
+            print("HURRAY")
+            break
+        elif len(intersection_points) == 2:
+            theta_min = theta_m
+        else:
+            theta_max = theta_m
+
+    return leftmost_boundary
 
 def odom_callback(odom_msg):
     global ego_pose
@@ -43,7 +135,7 @@ def callback(scan_msg):
     global ego_pose
     # Check if an obstacle is detected based on your criteria
     threshold = 10  # Adjust the desired threshold
-    angle_range = 40  # Range of angles to consider for ellipse computation
+    angle_range = 80  # Range of angles to consider for ellipse computation
     middle_index = len(scan_msg.ranges) // 2
     
     if any(distance < threshold for distance in scan_msg.ranges[middle_index - angle_range//2:middle_index + angle_range//2]):
@@ -72,18 +164,22 @@ def callback(scan_msg):
                 for point in lidar_points
             ]
 
-            # print('Lidar Points:', transformed_points)
+            print('Lidar Points:', transformed_points)
             
-            # # Compute the Minimum-Volume Enclosing Ellipsoid (MVEE)
-            # center, lengths = compute_mvee(transformed_points)
-            # print('Ellipsoid Center:', center)
-            # print('Ellipsoid Lengths:', lengths)
+            # Compute the Minimum-Volume Enclosing Ellipsoid (MVEE)
+            center, radii, rotation = mvee(np.array(transformed_points))
 
-            # center, A = khachiyan_algorithm(transformed_points)
-            A, center = mvee(np.array(transformed_points))
+            alpha = np.arccos(rotation[0, 0])
+            print('Center:', center)
+            print('Radii:', radii)
+            print('Alpha:', alpha)
 
-            print("Center:", center)
-            print("A matrix:", A)
+
+            # print("Center:", center)
+            # print("A matrix:", A)
+
+            leftmost_boundary = retrieve_leftmost_boundary(center, radii, alpha)
+            print('Leftmost Boundary Point:', leftmost_boundary)
 
             rospy.sleep(10)
 
