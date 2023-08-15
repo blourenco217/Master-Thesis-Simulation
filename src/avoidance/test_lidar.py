@@ -4,10 +4,11 @@ import numpy as np
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
-from scipy.linalg import fractional_matrix_power
 from numpy.linalg import inv, norm
 import numpy.linalg as la
 from numpy import linalg
+
+from sklearn.cluster import KMeans
 
 def mvee(P, tolerance=0.01):
     """ Find the minimum volume ellipsoid which holds all the points
@@ -72,13 +73,10 @@ def quadratic_equation(a, b, c):
     else:
         return [(-b + np.sqrt(b**2 - 4*a*c))/(2*a), (-b - np.sqrt(b**2 - 4*a*c))/(2*a)]
 
-
-def line_ellipse_intersection(center, radii, rotation, beta):
+def line_ellipse_intersection(center, radii, alpha, beta):
 
     x_0, y_0 = center[0], center[1]
     a, b = radii[0], radii[1]
-    alpha = rotation
-
 
     A = (np.cos(alpha)**2)/a**2 + (np.sin(alpha)**2)/b**2
     B = 2*np.cos(alpha)*np.sin(alpha)*(1/a**2 - 1/b**2)
@@ -91,7 +89,7 @@ def line_ellipse_intersection(center, radii, rotation, beta):
     solution_x = quadratic_equation(eq_a, eq_b, eq_c)
     solution_y = [np.tan(beta)*x + y_0 for x in solution_x]
     solutions = [[x, y] for x, y in zip(solution_x, solution_y)]
-    print('solutions', solutions)
+    # print('solutions', solutions)
 
     if len(solutions) == 0:
         return []
@@ -101,7 +99,6 @@ def line_ellipse_intersection(center, radii, rotation, beta):
         return solutions
 
 
-
 def retrieve_leftmost_boundary(center, radii, rotation):
     theta_min = 0
     theta_max = np.pi / 2
@@ -109,14 +106,11 @@ def retrieve_leftmost_boundary(center, radii, rotation):
 
     while theta_max - theta_min > 1e-6:
         theta_m = (theta_min + theta_max) / 2
-        print(theta_m)
-
 
         intersection_points = line_ellipse_intersection(center, radii, rotation, theta_m)
 
         if len(intersection_points) == 1:
             leftmost_boundary = intersection_points
-            print("HURRAY")
             break
         elif len(intersection_points) == 2:
             theta_min = theta_m
@@ -125,17 +119,11 @@ def retrieve_leftmost_boundary(center, radii, rotation):
 
     return leftmost_boundary
 
-def odom_callback(odom_msg):
-    global ego_pose
-    position = odom_msg.pose.pose.position
-    orientation = odom_msg.pose.pose.orientation
-    ego_pose = (position.x, position.y, euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])[2])
 
-def callback(scan_msg):
-    global ego_pose
+def local_planner(ego_pose, lidar_points_prev, scan_msg):
     # Check if an obstacle is detected based on your criteria
-    threshold = 10  # Adjust the desired threshold
-    angle_range = 80  # Range of angles to consider for ellipse computation
+    threshold = 25  # Adjust the desired threshold
+    angle_range = 100  # Range of angles to consider for ellipse computation
     middle_index = len(scan_msg.ranges) // 2
     
     if any(distance < threshold for distance in scan_msg.ranges[middle_index - angle_range//2:middle_index + angle_range//2]):
@@ -165,14 +153,22 @@ def callback(scan_msg):
             ]
 
             print('Lidar Points:', transformed_points)
+            # Classify obstacles
+            if lidar_points_prev != []:
+
+                print('Lidar Points Prev:', lidar_points_prev)
+                static_obstacles, dynamic_obstacles = classify_obstacles(transformed_points)
+                print('Static Obstacles:', static_obstacles)
+                print('Dynamic Obstacles:', dynamic_obstacles)
+                
             
             # Compute the Minimum-Volume Enclosing Ellipsoid (MVEE)
             center, radii, rotation = mvee(np.array(transformed_points))
 
             alpha = np.arccos(rotation[0, 0])
-            print('Center:', center)
-            print('Radii:', radii)
-            print('Alpha:', alpha)
+            # print('Center:', center)
+            # print('Radii:', radii)
+            # print('Alpha:', alpha)
 
 
             # print("Center:", center)
@@ -181,7 +177,77 @@ def callback(scan_msg):
             leftmost_boundary = retrieve_leftmost_boundary(center, radii, alpha)
             print('Leftmost Boundary Point:', leftmost_boundary)
 
-            rospy.sleep(10)
+        lidar_points_prev = transformed_points.copy()
+        
+        rospy.sleep(5)
+
+def classify_obstacles(points):
+    # Separate points into static and dynamic obstacles using k-means clustering
+    num_clusters = 2  # Number of clusters for classification
+    kmeans = KMeans(n_clusters=num_clusters, n_init=10)
+    labels = kmeans.fit_predict(points)
+
+    static_obstacles = []
+    dynamic_obstacles = []
+
+    static_threshold = 0.1   # Threshold for static obstacles - empirical value
+    dynamic_threshold = 0.5  # Threshold for dynamic obstacles - empirical value
+
+    for i in range(num_clusters):
+        cluster_points = [point for j, point in enumerate(points) if labels[j] == i]
+        
+        # Calculate displacement for cluster points
+        # print('Cluster Points:', cluster_points)
+        # print('Lidar Points Prev:', lidar_points_prev)
+        # quit()
+        displacement = np.linalg.norm(np.array(cluster_points) - np.array(lidar_points_prev))
+        
+        if np.max(displacement) < static_threshold:
+            static_obstacles.extend(cluster_points)
+        elif np.min(displacement) > dynamic_threshold:
+            dynamic_obstacles.extend(cluster_points)
+
+    return static_obstacles, dynamic_obstacles
+
+
+def odom_callback(odom_msg):
+    global ego_pose
+    position = odom_msg.pose.pose.position
+    orientation = odom_msg.pose.pose.orientation
+    ego_pose = (position.x, position.y, euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])[2])
+
+
+def callback(scan_msg):
+    global ego_pose
+    global lidar_points_prev
+    lidar_points_prev = []
+    local_planner(ego_pose, lidar_points_prev, scan_msg)
+    # print('ççççççççç')
+
+    # min_points_in_cluster = 3  # Minimum number of points in a cluster to consider as an obstacle
+    # max_distance_from_ego = 20  # Maximum distance from ego vehicle to classify an obstacle as static
+    # # Classify obstacles using k-means clustering
+    # num_clusters = 2  # Adjust as needed
+    # kmeans = KMeans(n_clusters=num_clusters)
+    # labels = kmeans.fit_predict(transformed_points)
+
+    # # Extract cluster centers
+    # cluster_centers = kmeans.cluster_centers_
+
+    # # Classify obstacles as static or dynamic
+    # static_obstacles = []
+    # dynamic_obstacles = []
+    # for i in range(num_clusters):
+    #     if len(labels[labels == i]) >= min_points_in_cluster:  # Adjust min_points_in_cluster as needed
+    #         if np.linalg.norm(cluster_centers[i] - ego_pose[:2]) < max_distance_from_ego:  # Adjust max_distance_from_ego as needed
+    #             static_obstacles.append(cluster_centers[i])
+    #         else:
+    #             dynamic_obstacles.append(cluster_centers[i])
+    
+    # print('Static Obstacles:', static_obstacles)
+    # print('Dynamic Obstacles:', dynamic_obstacles)
+
+            
 
 rospy.init_node('ellipse_drawer')
 
