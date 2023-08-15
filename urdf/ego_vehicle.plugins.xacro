@@ -37,19 +37,16 @@
 
     <!-- Gazebo Plugin for cmd_vel topic -->
     <gazebo>
-        <plugin name="gazebo_ros_cmd_vel" filename="libgazebo_ros_planar_move.so">
-            <cmdVelTopic>/ego_vehicle/cmd_vel</cmdVelTopic>
-            <updateRate>10.0</updateRate>
-        </plugin>
-    </gazebo>
-
-    <!-- Gazebo Plugin for odometry topic -->
-    <gazebo>
-        <plugin name="gazebo_ros_odometry" filename="libgazebo_ros_planar_move.so">
-            <odomTopic>/ego_vehicle/odometry</odomTopic>
-            <frameId>odom</frameId>
-            <childFrameId>base_link</childFrameId>
-            <updateRate>30.0</updateRate>
+        <plugin name="object_controller" filename="libgazebo_ros_planar_move.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>100</updateRate> 
+        <commandTopic>cmd_vel</commandTopic>
+        <odometryTopic>odom</odometryTopic>
+        <odometryFrame>odom</odometryFrame>
+        <odometryRate>50.0</odometryRate>
+        <robotBaseFrame>base_footprint</robotBaseFrame>
+        <publishTF>true</publishTF>
+        <cmdTimeout>10.0</cmdTimeout>
         </plugin>
     </gazebo>
 

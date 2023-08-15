@@ -1,17 +1,5 @@
+<?xml version="1.0"?>
 <launch>
-
-  <arg name="x" default="0"/>
-  <arg name="y" default="3.5"/>
-  <arg name="z" default="0"/>
-  <!--Gazebo empty world launch file-->
-  <!-- <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    	<arg name="debug" value="false" />
-    	<arg name="gui" value="true" />
-    	<arg name="paused" value="false"/>
-    	<arg name="use_sim_time" value="false"/>
-    	<arg name="headless" value="false"/>
-    	<arg name="verbose" value="true"/>
-  </include> -->
 
 <!-- Load Gazebo with the world file -->
   <arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
@@ -20,27 +8,20 @@
     <arg name="use_sim_time" value="true"/>
   </include>
 
-  <!--Robot Description from URDF-->
-  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/ego_vehicle.xacro"/>
-  <param name="use_gui" value="true"/>
-
-  <!--Nodes-->
-  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-
-  <!-- <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -param robot_description -model mybot -verbose" output="screen"/> -->
-  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
-  args="-urdf -model ego_vehicle -param robot_description -x $(arg x) -y $(arg y) -z $(arg z) -Y 0"
-  respawn="false" output="screen"/>
-
-  <!-- Launch the controllers -->
+  <group ns="/ego_vehicle">
+    <param name="tf_prefix" value="ego_vehicle_tf" />
+    <param name="/ego_vehicle/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/ego_vehicle.xacro"/>
+      <arg name="init_pose" value="-x 0 -y 3.5 -z 0" />
+      <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
+        args="$(arg init_pose) -unpause -urdf -model ego_vehicle -param robot_description " respawn="false" output="screen">
+      </node>
+    <rosparam file="$(find my_truckie)/config/joints.yaml" command="load" />
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
-        output="screen"
-        args="joint_state_controller
-        hitch_joint_position_controller
-        --timeout 60">
+      output="screen"
+      args="joint_state_controller
+      hitch_joint_position_controller
+      --timeout 60">
     </node>
-
-  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/rviz/mybot.rviz" required="true"/> -->
+  </group>
 
 </launch>

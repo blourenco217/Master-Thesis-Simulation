@@ -17,18 +17,19 @@ vehicle_width = 3
 class mpc(object):
     def __init__(self, vehicle, dt = 0.1, N = 10):
         self.vehicle = vehicle
-        # self.environment = environment
         self.nx = len(vehicle.vehicle) + 4
         self.nu = 2
         self.dt = dt                             # step size
         self.N = N                               # prediction horizon
+
         
         U = ca.MX.sym('U', self.nu, N)           # control input (nu, N)
         X = ca.MX.sym('X', self.nx, N+1)         # state (nx, N+1)
         INITIAL = ca.MX.sym('INITIAL', self.nx)  # initial state (nx, 1)
         REF = ca.MX.sym('REF', self.nx, N)       # reference trajectory (nx, N)
 
-        OBSTACLE = ca.MX.sym('OBSTACLE', 2)      # obstacle current position (2, 1)
+        OBSTACLE_POS = ca.MX.sym('OBSTACLE_POS', 2)      # obstacle current position (2, 1)
+        OBSTACLE_VEL = ca.MX.sym('OBSTACLE_VEL', 2)      # obstacle current velocity (2, 1)
 
         self.initiate_weights()
         objective = 0                            # cost function
@@ -45,13 +46,12 @@ class mpc(object):
             st_next_RK4 = rk4(vehicle.dynamics, x_k[:4 + len(vehicle.vehicle)], u_k[:2], self.dt) 
             dynamics_constraints = ca.vertcat(dynamics_constraints, st_next - st_next_RK4)
 
-            # if self.environment.number_obstacles:
-            #     # TODO: considering a liner movement
-            #     prediction_obstacle_position = (OBSTACLE[0] + k * self.environment.velocity * self.dt, OBSTACLE[1])
-            #     vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0],
-            #                                     prediction_obstacle_position[1] + 2 + vehicle_width/2 - x_k[1])
-            #     objective_constrained += ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) + \
-            #          2.5**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
+            prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
+            vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0],
+                                            prediction_obstacle_position[1] + 2 + vehicle_width/2 - x_k[1])
+            objective_constrained += ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) + \
+                    2.5**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
+
         
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))
         constraints = ca.vertcat(dynamics_constraints)
@@ -65,20 +65,20 @@ class mpc(object):
             'p': P
         }
 
-        # P_constrained = ca.vertcat(INITIAL, REF.reshape((-1, 1)), OBSTACLE.reshape((-1, 1)))
+        P_constrained = ca.vertcat(INITIAL, REF.reshape((-1, 1)), OBSTACLE_POS.reshape((-1, 1)), OBSTACLE_VEL.reshape((-1, 1)))
 
-        # nlp_constrained = {
-        #     'f': objective_constrained,
-        #     'x': opt_variables,
-        #     'g': constraints,
-        #     'p': P_constrained
-        # }
+        nlp_constrained = {
+            'f': objective_constrained,
+            'x': opt_variables,
+            'g': constraints,
+            'p': P_constrained
+        }
     
         self.solver_unconstrained = ca.nlpsol('solver', 'ipopt', nlp, MPC_OPTS)
-        # self.solver_constrained = ca.nlpsol('solver', 'ipopt', nlp_constrained, MPC_OPTS)
+        self.solver_constrained = ca.nlpsol('solver', 'ipopt', nlp_constrained, MPC_OPTS)
         if verbose:
             print(self.solver_unconstrained.stats())
-            # print(self.solver_constrained.stats())
+            print(self.solver_constrained.stats())
         self.initiate_constraints()
   
     def initiate_weights(self):
@@ -108,43 +108,36 @@ class mpc(object):
             ubx[i:self.nx*(self.N+1):self.nx] = ca.inf      # betha_i upper bound
 
         lbx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] =  -ca.inf      # lower bound for steering
-        ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = 5        # upper bound for steering
+        ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = ca.inf        # upper bound for steering
 
         lbx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = -ca.inf   # lower bound for throttle    
         ubx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = ca.inf    # upper bound for throttle
 
 
-        if non_convex_constraint:
-            lbg = ca.DM.zeros((self.nx*(self.N+1) + (int(len(self.obstacle.center_obstacle))) * self.N, 1))
-            ubg = ca.DM.zeros((self.nx*(self.N+1) + (int(len(self.obstacle.center_obstacle))) * self.N, 1))
-            lbg[-self.N:] = 0
-            ubg[-self.N:] = ca.inf
-        else:
-            lbg = ca.DM.zeros((self.nx*(self.N+1), 1))  # constraints lower bound
-            ubg = ca.DM.zeros((self.nx*(self.N+1), 1))  # constraints upper bound
+        lbg = ca.DM.zeros((self.nx*(self.N+1), 1))  # constraints lower bound
+        ubg = ca.DM.zeros((self.nx*(self.N+1), 1))  # constraints upper bound
         self.args = {
             'lbg': lbg,
             'ubg': ubg,
             'lbx': lbx,
-            'ubx': ubx,
-            'p': 0
+            'ubx': ubx
         }
 
 
-    def is_within_obstacle(self, X0):
-        # detect obstacle in horizon
+    # def is_within_obstacle(self, X0):
+    #     # detect obstacle in horizon
 
-        for i in range(len(self.obstacle.center_obstacle)):
-            for j in range(self.N):
-                pos = ca.vertcat(X0[0,j], X0[1,j])
-                dist = ca.norm_2(pos - self.obstacle.center_obstacle[i])
-                if dist < self.obstacle.radius_obstacle[i]:
-                    return True, i
-        return False
+    #     for i in range(len(self.obstacle.center_obstacle)):
+    #         for j in range(self.N):
+    #             pos = ca.vertcat(X0[0,j], X0[1,j])
+    #             dist = ca.norm_2(pos - self.obstacle.center_obstacle[i])
+    #             if dist < self.obstacle.radius_obstacle[i]:
+    #                 return True, i
+    #     return False
     
-    def has_overtaken_obstacle(self, X0, inx):
-        # detect obstacle in horizon
-        for i in range(len(self.obstacle.center_obstacle)):
-            if X0[0,0] >= self.obstacle.center_obstacle[inx][0]:
-                return True, i
-        return False, i
+    # def has_overtaken_obstacle(self, X0, inx):
+    #     # detect obstacle in horizon
+    #     for i in range(len(self.obstacle.center_obstacle)):
+    #         if X0[0,0] >= self.obstacle.center_obstacle[inx][0]:
+    #             return True, i
+    #     return False, i
