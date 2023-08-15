@@ -21,12 +21,11 @@ class ExtendedKalmanFilter(object):
         # Q = block_diag(self.process_noise_covariance, np.zeros((4, 4)))  # Process noise covariance
 
         # Prediction step
-        # self.state = A @ self.state  # x = Ax + Bu
+        self.state = A @ self.state  # x = Ax + Bu
         self.covariance = A @ self.covariance @ A.T #+ Q  # P = APA' + Q
 
     def update(self, measurement):
-        measurement = measurement.reshape((6, 1))
-        measurement = measurement[:2]
+        measurement = np.array(measurement).reshape((2, 1))
         H = np.array([[1, 0, 0, 0, 0, 0],
                        [0, 1, 0, 0, 0, 0]])  # Measurement matrix
         R = self.measurement_noise_covariance  # Measurement noise covariance
@@ -35,14 +34,7 @@ class ExtendedKalmanFilter(object):
         K = self.covariance @ H.T @ inv(H @ self.covariance @ H.T + R)
 
         # Update step
-        # self.state = np.array(self.state)
-        print('K', K.shape)
-        print('H', H.shape)
-        print('self.state', self.state.shape)
-        print('measurement', measurement.shape)
-        print(H @ self.state)
         innovation = measurement - H @ self.state  # y = z - Hx
-        print('innovation', innovation.shape)
         
         self.state = self.state + K @ innovation  # x = x + Ky
         self.covariance = (np.eye(6) - K @ H) @ self.covariance  # P = (I - KH)P

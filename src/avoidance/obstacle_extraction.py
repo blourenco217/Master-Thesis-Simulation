@@ -29,7 +29,6 @@ class ObstacleExtraction(object):
             measurement_noise_covariance=np.eye(2) * 0.1  # Measurement noise covariance
         )
 
-        self.prev_velocity = np.array([0.0, 0.0])
     
     def scan_callback(self, msg):
         threshold = 40  # Adjust the desired threshold
@@ -79,20 +78,10 @@ class ObstacleExtraction(object):
                     measured_position = current_position
                     prev_position = self.leftmost_boundary
                     measured_velocity = (np.array(current_position) - np.array(prev_position)) / delta_t
-                    measured_acceleration = (np.array(measured_velocity) - np.array(self.prev_velocity)) / delta_t
 
-                    # measured_position = np.array([measured_position])
-                    # measured_velocity = np.array([measured_velocity])
-                    # measured_acceleration = np.array([measured_acceleration])
-                    print('Measured Obstacle Position (x, y):', measured_position)
-                    print('Measured Obstacle Velocity (x, y):', measured_velocity)
-                    print('Measured Obstacle Acceleration (x, y):', measured_acceleration)
-                    
-                    measured_state = np.concatenate((measured_position, measured_velocity, measured_acceleration),  axis=1).T
-                    print('Measured Obstacle State (x, y, vx, vy, ax, ay):', measured_state)
                     # Update EKF
                     self.ekf.predict(delta_t)
-                    self.ekf.update(measured_state)
+                    self.ekf.update(measured_position)
                     
                     predicted_state = self.ekf.get_state()
                     predicted_velocity = predicted_state[2:4]  # Extract velocity component
@@ -103,6 +92,8 @@ class ObstacleExtraction(object):
                     print('Static Obstacle Detected')
                 self.leftmost_boundary = leftmost_boundary
                 print('Leftmost Boundary Point:', self.leftmost_boundary)
+            
+            rospy.sleep(0.1)
 
     def odometry_callback(self, msg):
         position = msg.pose.pose.position
