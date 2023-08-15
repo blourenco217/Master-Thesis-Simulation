@@ -16,7 +16,7 @@
       <node name="urdf_spawner_1" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model npc1 -param robot_description " respawn="false" output="screen">
       </node>
-    <node name="control_npc" pkg="my_truckie" type="spawn_obstacles.py" args="npc1 3" output="screen" />
+    <node name="control_npc" pkg="my_truckie" type="spawn_obstacles.py" args="npc1 2" output="screen" />
   </group>
 
   <!-- second obstacle -->

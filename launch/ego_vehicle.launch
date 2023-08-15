@@ -11,7 +11,7 @@
   <group ns="/ego_vehicle">
     <param name="tf_prefix" value="ego_vehicle_tf" />
     <param name="/ego_vehicle/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/ego_vehicle.xacro"/>
-      <arg name="init_pose" value="-x 0 -y 3.5 -z 0" />
+      <arg name="init_pose" value="-x -10 -y 3.5 -z 0" />
       <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model ego_vehicle -param robot_description " respawn="false" output="screen">
       </node>

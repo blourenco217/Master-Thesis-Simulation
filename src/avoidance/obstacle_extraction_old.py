@@ -7,23 +7,20 @@ from tf.transformations import euler_from_quaternion
 from numpy.linalg import inv, norm
 import numpy.linalg as la
 from numpy import linalg
-from avoidance.ekf import ExtendedKalmanFilter
+from ekf import ExtendedKalmanFilter
 
-from avoidance.utils import *
+from utils import *
 
 
 class ObstacleExtraction(object):
     def __init__(self):
-        # rospy.init_node('obstacle_extraction', anonymous=True)
-        # self.scan_sub = rospy.Subscriber('/ego_vehicle/laser_scan', LaserScan, self.scan_callback)
-        # self.odom_sub = rospy.Subscriber('/ego_vehicle/odom', Odometry, self.odometry_callback)
-        # self.rate = rospy.Rate(10)
-
-        self.obstacle_ahead = False
+        rospy.init_node('obstacle_extraction', anonymous=True)
+        self.scan_sub = rospy.Subscriber('/ego_vehicle/laser_scan', LaserScan, self.scan_callback)
+        self.odom_sub = rospy.Subscriber('/ego_vehicle/odom', Odometry, self.odometry_callback)
+        self.rate = rospy.Rate(10)
 
         self.ego_pose = (0.0, 0.0, 0.0)  # Initialize the position
         self.leftmost_boundary = [-float('inf'), 0]
-        self.predicted_velocity = [0, 0]
 
         self.ekf = ExtendedKalmanFilter(
             initial_state=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),  # Initial state: [position_x, position_y, velocity_x, velocity_y, acceleration_x, acceleration_y]
@@ -39,8 +36,6 @@ class ObstacleExtraction(object):
         middle_index = len(msg.ranges) // 2
 
         if any(distance < threshold for distance in msg.ranges[middle_index - angle_range//2:middle_index + angle_range//2]):
-
-            self.obstacle_ahead = True
             # Filter lidar points within the desired range and remove points with distance infinity
             angle_min = msg.angle_min
             angle_increment = msg.angle_increment
@@ -89,19 +84,16 @@ class ObstacleExtraction(object):
                     self.ekf.update(measured_position)
                     
                     predicted_state = self.ekf.get_state()
-                    self.predicted_velocity = predicted_state[2:4]  # Extract velocity component
+                    predicted_velocity = predicted_state[2:4]  # Extract velocity component
                     self.prev_velocity = measured_velocity
-                    print('Predicted Obstacle Velocity (x, y):', self.predicted_velocity)
+                    print('Predicted Obstacle Velocity (x, y):', predicted_velocity)
             
                 else:
                     print('Static Obstacle Detected')
                 self.leftmost_boundary = leftmost_boundary
                 print('Leftmost Boundary Point:', self.leftmost_boundary)
             
-            else:
-                self.obstacle_ahead = False
-      
-            # rospy.sleep(0.1)
+            rospy.sleep(0.1)
 
     def odometry_callback(self, msg):
         position = msg.pose.pose.position

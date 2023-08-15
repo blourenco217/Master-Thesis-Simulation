@@ -2,23 +2,29 @@
 
 from model.truck_dynamics import vehicle_model
 from controller.mpc import mpc
+from avoidance.obstacle_extraction import ObstacleExtraction
 
 import rospy
 import casadi as ca
+import numpy as np
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
+from sensor_msgs.msg import LaserScan
+
 
 
 class EgoVehicleController(object):
     def __init__(self, vehicle):
         
+        self.obstacle_extraction = ObstacleExtraction()
         self.vehicle = vehicle
         rospy.init_node('ego_vehicle_controller', anonymous=True)
-        self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-        self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odometry_callback)
-        self.hitch_angle_pub = rospy.Publisher('/hitch_joint_position_controller/command', Float64, queue_size=10)
-        self.hitch_angle_sub = rospy.Subscriber('/hitch_joint_position_controller/state', Float64, self.hitch_angle_callback)
+        self.scan_sub = rospy.Subscriber('/ego_vehicle/laser_scan', LaserScan, self.scan_callback)
+        self.cmd_vel_pub = rospy.Publisher('/ego_vehicle/cmd_vel', Twist, queue_size=10)
+        self.odom_sub = rospy.Subscriber('/ego_vehicle/odom', Odometry, self.odometry_callback)
+        self.hitch_angle_pub = rospy.Publisher('/ego_vehicle/hitch_joint_position_controller/command', Float64, queue_size=10)
+        self.hitch_angle_sub = rospy.Subscriber('/ego_vehicle/hitch_joint_position_controller/state', Float64, self.hitch_angle_callback)
 
         self.rate = rospy.Rate(10) # 10 Hz
 
@@ -33,6 +39,12 @@ class EgoVehicleController(object):
         self.reference = self.position[0]
 
         rospy.loginfo("Ego-Vehicle Controller Initialized.")
+
+    def scan_callback(self, msg):
+        self.obstacle_extraction.scan_callback(msg)
+
+        if self.obstacle_extraction.obstacle_ahead:
+            pass
     
     def odometry_callback(self, msg):
         self.position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
@@ -59,7 +71,7 @@ class EgoVehicleController(object):
                 x_ref = 200
                 # x_ref = self.reference
                 
-                y_ref = 7.5
+                y_ref = 3.5
                 # if mpc_iter > 200:
                 #     y_ref = 1.75
                 theta_ref = 0
@@ -74,14 +86,33 @@ class EgoVehicleController(object):
                 ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
                 ca.reshape(u0, self.controller.nu*self.controller.N, 1)
             )
-            sol = self.controller.solver_unconstrained(
+            if self.obstacle_extraction.obstacle_ahead:
+                leftmost_boundary = np.array(self.obstacle_extraction.leftmost_boundary).reshape(2,)
+                predicted_velocity = np.array(self.obstacle_extraction.predicted_velocity).reshape(2,)
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0], leftmost_boundary[1])
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[0], predicted_velocity[1])
+                
+                # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.obstacle_extraction.leftmost_boundary)
+                # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.obstacle_extraction.leftmost_boundary[0], self.obstacle_extraction.leftmost_boundary[1])
+                
+                # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.obstacle_extraction.predicted_velocity[0], self.obstacle_extraction.predicted_velocity[1])
+                sol = self.controller.solver_constrained(
                     x0 = self.controller.args['x0'],
-                    lbx = self.controller.args['lbx'],
-                    ubx = self.controller.args['ubx'],
-                    lbg = self.controller.args['lbg'],
-                    ubg = self.controller.args['ubg'],
-                    p = self.controller.args['p']
-                )
+                        lbx = self.controller.args['lbx'],
+                        ubx = self.controller.args['ubx'],
+                        lbg = self.controller.args['lbg'],
+                        ubg = self.controller.args['ubg'],
+                        p = self.controller.args['p']
+                    )
+            else:
+                sol = self.controller.solver_unconstrained(
+                        x0 = self.controller.args['x0'],
+                        lbx = self.controller.args['lbx'],
+                        ubx = self.controller.args['ubx'],
+                        lbg = self.controller.args['lbg'],
+                        ubg = self.controller.args['ubg'],
+                        p = self.controller.args['p']
+                    )
             u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
             X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
 

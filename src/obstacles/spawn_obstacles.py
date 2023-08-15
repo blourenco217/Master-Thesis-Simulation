@@ -14,6 +14,7 @@ class MoveAndPrintPosition:
 
         self.twist_cmd = Twist()
         self.twist_cmd.linear.x = velocity   # Set the desired linear velocity
+        self.twist_cmd.linear.y = 0.0
         self.twist_cmd.angular.z = 0.0  # No angular velocity
 
         self.position = (0.0, 0.0)  # Initialize the position
