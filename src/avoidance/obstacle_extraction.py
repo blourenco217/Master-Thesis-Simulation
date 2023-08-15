@@ -34,8 +34,8 @@ class ObstacleExtraction(object):
 
     
     def scan_callback(self, msg):
-        threshold = 40  # Adjust the desired threshold
-        angle_range = 100  # Range of angles to consider for ellipse computation
+        threshold = 30  # Adjust the desired threshold
+        angle_range = 60  # Range of angles to consider for ellipse computation
         middle_index = len(msg.ranges) // 2
 
         if any(distance < threshold for distance in msg.ranges[middle_index - angle_range//2:middle_index + angle_range//2]):

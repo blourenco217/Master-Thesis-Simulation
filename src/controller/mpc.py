@@ -50,7 +50,7 @@ class mpc(object):
             vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0],
                                             prediction_obstacle_position[1] + 2 + vehicle_width/2 - x_k[1])
             objective_constrained += ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) + \
-                    2.5**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
+                    3**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
 
         
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))
@@ -82,7 +82,7 @@ class mpc(object):
         self.initiate_constraints()
   
     def initiate_weights(self):
-        weights = [100, 1, 10, 10, 100]
+        weights = [100, 10, 10, 10, 100]
         for _ in range(1,len(self.vehicle.vehicle)):
             weights.append(100)
         self.Q = ca.diagcat(*weights)      # state weights matrix
@@ -108,7 +108,7 @@ class mpc(object):
             ubx[i:self.nx*(self.N+1):self.nx] = ca.inf      # betha_i upper bound
 
         lbx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] =  -ca.inf      # lower bound for steering
-        ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = 5             # upper bound for steering
+        ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = 100             # upper bound for steering
 
         lbx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = -ca.inf   # lower bound for throttle    
         ubx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = ca.inf    # upper bound for throttle

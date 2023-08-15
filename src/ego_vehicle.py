@@ -30,6 +30,8 @@ class EgoVehicleController(object):
 
         dt = 1/10
         self.controller = mpc(self.vehicle, dt, N = 10)
+        self.u0 = ca.DM.zeros((self.controller.nu, self.controller.N))
+        self.x0 = ca.DM.zeros((self.controller.nx))
 
         self.twist_cmd = Twist()
 
@@ -56,14 +58,13 @@ class EgoVehicleController(object):
     def move(self):
         while not rospy.is_shutdown():
             # self.twist_cmd.linear.x, self.twist_cmd.angular.z = self.controller.control(self.position)
-            u0 = ca.DM.zeros((self.controller.nu, self.controller.N))
-            x0 = ca.DM.zeros((self.controller.nx))
+            
 
             self.controller.args['x0'] = [self.position[0], self.position[1], 0, 0, 0, 0]
             self.cmd_vel_pub.publish(self.twist_cmd)
             self.controller.args['p'] = ca.vertcat(self.controller.args['x0'])
 
-            X0 = ca.repmat(x0, 1, self.controller.N+1)
+            X0 = ca.repmat(self.x0, 1, self.controller.N+1)
 
             self.reference += 1
             for i in range(self.controller.N):
@@ -71,7 +72,8 @@ class EgoVehicleController(object):
                 x_ref = 200
                 # x_ref = self.reference
                 
-                y_ref = 3.5
+                # y_ref = 3.5
+                y_ref = 7.5
                 # if mpc_iter > 200:
                 #     y_ref = 1.75
                 theta_ref = 0
@@ -84,12 +86,12 @@ class EgoVehicleController(object):
             # optimization variable current state
             self.controller.args['x0'] = ca.vertcat(
                 ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
-                ca.reshape(u0, self.controller.nu*self.controller.N, 1)
+                ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
             )
             if self.obstacle_extraction.obstacle_ahead:
                 leftmost_boundary = np.array(self.obstacle_extraction.leftmost_boundary).reshape(2,)
                 predicted_velocity = np.array(self.obstacle_extraction.predicted_velocity).reshape(2,)
-                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0], leftmost_boundary[1])
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0] + self.position[0], leftmost_boundary[1]+ self.position[1])
                 self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[0], predicted_velocity[1])
                 
                 # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.obstacle_extraction.leftmost_boundary)
@@ -115,21 +117,27 @@ class EgoVehicleController(object):
                     )
             u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
             X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
+            # print(X0)
+            # print(X0.shape)
 
-            u0 = u
-            self.twist_cmd.linear.x = u[0, 0]
+            self.u0 = u
+            # self.twist_cmd.linear.x = u[0, 0] * ca.cos(self.controller.args['x0'][4])
+            # self.twist_cmd.linear.y =  u[0, 0] * ca.sin(self.controller.args['x0'][4])
+            self.twist_cmd.linear.x = X0[2, 1]
+            # self.twist_cmd.linear.x = X0[2, 1] * ca.cos(X0[4, 1])
+            # self.twist_cmd.linear.y = X0[2, 1] * ca.sin(X0[4, 1])
             # self.twist_cmd.linear.x = u[0, 0] * ca.cos(self.controller.args['x0'][4])
             # self.twist_cmd.linear.y =  u[1, 0] * ca.sin(self.controller.args['x0'][4])
-            self.twist_cmd.angular.z = u[1, 0]
+            self.twist_cmd.angular.z = X0[3, 1]
             # self.twist_cmd.linear.x = self.controller.args['x0'][0]
             # self.twist_cmd.linear.y = self.controller.args['x0'][1]
             # self.twist_cmd.angular.z = self.controller.args['x0'][4]
 
-
+            self.x0 = X0[:,1]
             self.cmd_vel_pub.publish(self.twist_cmd)
             command = Float64()
-            # command.data = self.controller.args['x0'][2]
-            command.data = self.controller.args['x0'][4] - self.controller.args['x0'][5]
+            command.data = X0[4, 1] - X0[5, 1]
+            # command.data = self.controller.args['x0'][4] - self.controller.args['x0'][5]
             self.hitch_angle_pub.publish(command)
 
             self.rate.sleep()
