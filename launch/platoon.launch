@@ -25,12 +25,13 @@
     <node name="control_ego_vehicle" pkg="my_truckie" type="ego_vehicle.py" output="screen" args="--timeout 10" />
   </group>
 
-  <group ns="/follower_vehicle">
+  <group ns="/follower_vehicle_1">
     <param name="tf_prefix" value="follower_tf" />
-    <param name="/follower_vehicle/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/follower_vehicle.xacro"/>
+    <param name="follower_id" value="1" />
+    <param name="/follower_vehicle_1/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/follower_vehicle.xacro"/>
       <arg name="init_pose" value="-x -35 -y 3.5 -z 0" />
       <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
-        args="$(arg init_pose) -unpause -urdf -model follower_vehicle -param robot_description " respawn="false" output="screen">
+        args="$(arg init_pose) -unpause -urdf -model follower_vehicle_1 -param robot_description " respawn="false" output="screen">
       </node>
     <rosparam file="$(find my_truckie)/config/joints.yaml" command="load" />
     <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
@@ -39,11 +40,12 @@
       hitch_joint_position_controller
       --timeout 60">
     </node>
-    <node name="control_follower_vehicle" pkg="my_truckie" type="follower_vehicle.py" output="screen" args="follower_vehicle --timeout 10" />
+    <node name="control_follower_vehicle_1" pkg="my_truckie" type="follower_vehicle.py" output="screen" args="follower_vehicle_1 --timeout 10" />
   </group>
 
   <group ns="/follower_vehicle_2">
     <param name="tf_prefix" value="follower_tf" />
+    <param name="follower_id" value="2" />
     <param name="/follower_vehicle_2/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/follower_vehicle.xacro"/>
       <arg name="init_pose" value="-x -50 -y 3.5 -z 0" />
       <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
@@ -58,9 +60,6 @@
     </node>
     <node name="control_follower_vehicle_2" pkg="my_truckie" type="follower_vehicle.py" output="screen" args="follower_vehicle_2 --timeout 10" />
   </group>
-
-
-  <!-- <node name="control_follower_vehicle" pkg="my_truckie" type="follower_vehicle.py" output="screen" args="- -timeout 10" /> -->
 
 
 </launch>

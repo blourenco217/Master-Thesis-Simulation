@@ -14,6 +14,19 @@ import sys
 class FollowerCACCNode(object):
     def __init__(self, namespace = 'follower_vehicle'):
         rospy.init_node('follower_cacc_node', anonymous=True)
+
+        self.follower_id = rospy.get_param('/' + namespace + '/follower_id')
+        rospy.loginfo("Follower id: %d", self.follower_id)
+
+        if self.follower_id > 1:
+            # subscriber to proceder vehicle
+            namespace_proceder = 'follower_vehicle_' + str(self.follower_id - 1)
+            rospy.Subscriber('/' + namespace_proceder + '/odom', Odometry, self.odom_proceder_callback)
+            rospy.Subscriber('/' + namespace_proceder + '/cmd_vel', Twist, self.cmd_vel_proceder_callback)
+            self.proceder_pose = (0.0, 0.0, 0.0)
+            self.proceder_vel = [0.0,0.0,0.0]
+            rospy.loginfo("ATTENZIONE PICKPOCKET")
+
         
         # Parameters
         self.target_headway = 1.0  # Desired time gap between vehicles (in seconds)
@@ -48,6 +61,15 @@ class FollowerCACCNode(object):
         self.hitch_angle_pub = rospy.Publisher('/follower_vehicle/hitch_joint_position_controller/command', Float64, queue_size=10)
         self.hitch_angle_sub = rospy.Subscriber('/follower_vehicle/hitch_joint_position_controller/state', Float64, self.hitch_angle_callback)
         self.hitch_angle = 0
+    
+    def cmd_vel_proceder_callback(self, cmd_vel_msg):
+        self.proceder_twist = cmd_vel_msg
+    
+    def odom_proceder_callback(self, odom_msg):
+        position = odom_msg.pose.pose.position
+        orientation = odom_msg.pose.pose.orientation
+        self.proceder_pose = (position.x, position.y, euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])[2])
+        self.proceder_vel = (odom_msg.twist.twist.linear.x, odom_msg.twist.twist.linear.y, odom_msg.twist.twist.angular.z)
 
     def hitch_angle_callback(self, msg):
         self.hitch_angle = msg.process_value
@@ -81,7 +103,6 @@ class FollowerCACCNode(object):
                 #                                        np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2), self.ego_vel[2],
                 #                                          self.ego_pose[2], 0)
 
-                
                 vel_ref = np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2)
 
                 if vel_ref < 2:
@@ -90,8 +111,14 @@ class FollowerCACCNode(object):
                     x_ref = self.follower_pose[0]
                     y_ref = self.follower_pose[1]
                 else:
-                    x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1)
-                    y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1)
+
+                    if self.follower_id > 1:
+                        x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1)
+                        y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1)
+                    else:
+                        x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1)
+                        y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1)
+
                     
 
                 self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, vel_ref, 0, 0, 0)
