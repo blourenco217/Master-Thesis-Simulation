@@ -83,7 +83,7 @@ class mpc(object):
         self.initiate_constraints()
   
     def initiate_weights(self):
-        weights = [10, 100, 0, 0, 10]
+        weights = [100, 100, 10, 0, 10]
         for _ in range(1,len(self.vehicle.vehicle)):
             weights.append(0)
         self.Q = ca.diagcat(*weights)      # state weights matrix

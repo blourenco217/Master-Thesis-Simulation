@@ -89,7 +89,7 @@ class EgoVehicleController(object):
                 theta_ref = 0
                 betha_1_ref = 0
                 betha_2_ref = 0
-                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, theta_ref)
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, 0)
                 for _ in range(1, 2 + len(self.vehicle.vehicle)):
                     self.controller.args['p'] = ca.vertcat(self.controller.args['p'], 0)
 

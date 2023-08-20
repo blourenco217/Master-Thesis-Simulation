@@ -3,7 +3,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-import sys  # Import the sys module
+import sys 
 
 class MoveAndPrintPosition:
     def __init__(self, namespace, velocity):  # Accept namespace as an argument

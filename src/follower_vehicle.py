@@ -9,9 +9,10 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 from tf.transformations import euler_from_quaternion
+import sys 
 
-class FollowerCACCNode:
-    def __init__(self):
+class FollowerCACCNode(object):
+    def __init__(self, namespace = 'follower_vehicle'):
         rospy.init_node('follower_cacc_node', anonymous=True)
         
         # Parameters
@@ -19,12 +20,12 @@ class FollowerCACCNode:
         self.kp = 0.5              # Proportional gain
         
         # Subscribers
-        rospy.Subscriber('ego_vehicle/odom', Odometry, self.odom_ego_callback)
-        rospy.Subscriber('ego_vehicle/cmd_vel', Twist, self.cmd_vel_callback)
+        rospy.Subscriber('/ego_vehicle/odom', Odometry, self.odom_ego_callback)
+        rospy.Subscriber('/ego_vehicle/cmd_vel', Twist, self.cmd_vel_callback)
         
         # Publisher
-        self.cmd_vel_pub = rospy.Publisher('/follower_vehicle/cmd_vel', Twist, queue_size=10)
-        self.odom_sub = rospy.Subscriber('/follower_vehicle/odom', Odometry, self.odometry_follower_callback)
+        self.cmd_vel_pub = rospy.Publisher('/' + namespace + '/cmd_vel', Twist, queue_size=10)
+        self.odom_sub = rospy.Subscriber('/' + namespace + '/odom', Odometry, self.odometry_follower_callback)
         
         # Initializations
         self.ego_pose = (0.0, 0.0, 0.0)
@@ -80,12 +81,20 @@ class FollowerCACCNode:
                 #                                        np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2), self.ego_vel[2],
                 #                                          self.ego_pose[2], 0)
 
-                x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1)
-                y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1)
-                # x_ref = 200
-                # y_ref = 7.5
-                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, 
-                                                       0, 0, 0, 0)
+                
+                vel_ref = np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2)
+
+                if vel_ref < 2:
+                    # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
+                    vel_ref = 0
+                    x_ref = self.follower_pose[0]
+                    y_ref = self.follower_pose[1]
+                else:
+                    x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1)
+                    y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1)
+                    
+
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, vel_ref, 0, 0, 0)
 
             self.controller.args['x0'] = ca.vertcat(
                 ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
@@ -113,7 +122,6 @@ class FollowerCACCNode:
             self.x0[0] = self.follower_pose[0]
             self.x0[1] = self.follower_pose[1]
             self.x0[2] = self.follower_pose[2]
-            print(self.follower_pose)
             self.cmd_vel_pub.publish(self.follower_twist)
             command = Float64()
             command.data = X0[4, 1] - X0[5, 1]
@@ -121,25 +129,10 @@ class FollowerCACCNode:
             self.rate.sleep()
 
 
-
-            # # Calculate desired follower velocity based on CACC algorithm
-            # desired_follower_vel_x = self.ego_vel[0] + self.kp * (self.target_headway - self.ego_twist.linear.x)
-            # desired_follower_vel_y = self.ego_vel[1] + self.kp * (self.target_headway - self.ego_twist.linear.y)
-            # desired_follower_rot_z = self.ego_vel[2] + self.kp * (self.target_headway - self.ego_twist.angular.z)
-            
-            # # Create a new Twist message with the desired follower velocity
-            # self.follower_twist.linear.x = desired_follower_vel_x
-            # # self.follower_twist.linear.y = desired_follower_vel_y
-            # self.follower_twist.angular.z = desired_follower_rot_z
-            
-            # # Publish the new twist command for the follower vehicle
-            # self.cmd_vel_pub.publish(self.follower_twist)
-            
-            # self.rate.sleep()
-
 if __name__ == '__main__':
     try:
-        follower_node = FollowerCACCNode()
+        namespace = sys.argv[1]             # Get namespace from command line argument
+        follower_node = FollowerCACCNode(namespace)
         follower_node.control_loop()
     except rospy.ROSInterruptException:
         pass
