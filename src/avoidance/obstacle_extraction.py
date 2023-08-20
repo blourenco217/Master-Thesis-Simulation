@@ -22,7 +22,8 @@ class ObstacleExtraction(object):
         self.obstacle_ahead = False
 
         self.ego_pose = (0.0, 0.0, 0.0)  # Initialize the position
-        self.leftmost_boundary = [-float('inf'), 0]
+        # self.leftmost_boundary = [-float('inf'), 0]
+        self.leftmost_boundary = [3.5, 3.5]
         self.predicted_velocity = [0, 0]
 
         self.ekf = ExtendedKalmanFilter(
@@ -34,8 +35,8 @@ class ObstacleExtraction(object):
 
     
     def scan_callback(self, msg):
-        threshold = 30  # Adjust the desired threshold
-        angle_range = 60  # Range of angles to consider for ellipse computation
+        threshold = 20  # Adjust the desired threshold
+        angle_range = 40  # Range of angles to consider for ellipse computation
         middle_index = len(msg.ranges) // 2
 
         if any(distance < threshold for distance in msg.ranges[middle_index - angle_range//2:middle_index + angle_range//2]):
@@ -73,7 +74,7 @@ class ObstacleExtraction(object):
                 # compute displacement
                 displacement = np.linalg.norm(np.array(leftmost_boundary) - np.array(self.leftmost_boundary))
                 if displacement > 0.2:
-                    print('Dynamic Obstacle Detected')
+                    # print('Dynamic Obstacle Detected')
 
                     # EKF prediction
                     delta_t = 0.1  # Adjust the time step as needed
@@ -91,12 +92,14 @@ class ObstacleExtraction(object):
                     predicted_state = self.ekf.get_state()
                     self.predicted_velocity = predicted_state[2:4]  # Extract velocity component
                     self.prev_velocity = measured_velocity
-                    print('Predicted Obstacle Velocity (x, y):', self.predicted_velocity)
+                    # print('Predicted Obstacle Velocity (x, y):', self.predicted_velocity)
+                    self.leftmost_boundary = leftmost_boundary
             
                 else:
-                    print('Static Obstacle Detected')
-                self.leftmost_boundary = leftmost_boundary
-                print('Leftmost Boundary Point:', self.leftmost_boundary)
+                    pass
+                    # print('Static Obstacle Detected')
+                # self.leftmost_boundary = leftmost_boundary
+                # print('Leftmost Boundary Point:', self.leftmost_boundary)
             
             else:
                 self.obstacle_ahead = False

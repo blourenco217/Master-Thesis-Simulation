@@ -19,14 +19,14 @@ class mpc(object):
         self.vehicle = vehicle
         self.nx = len(vehicle.vehicle) + 4
         self.nu = 2
-        self.dt = dt                             # step size
-        self.N = N                               # prediction horizon
+        self.dt = dt                                     # step size
+        self.N = N                                       # prediction horizon
 
         
-        U = ca.MX.sym('U', self.nu, N)           # control input (nu, N)
-        X = ca.MX.sym('X', self.nx, N+1)         # state (nx, N+1)
-        INITIAL = ca.MX.sym('INITIAL', self.nx)  # initial state (nx, 1)
-        REF = ca.MX.sym('REF', self.nx, N)       # reference trajectory (nx, N)
+        U = ca.MX.sym('U', self.nu, N)                   # control input (nu, N)
+        X = ca.MX.sym('X', self.nx, N+1)                 # state (nx, N+1)
+        INITIAL = ca.MX.sym('INITIAL', self.nx)          # initial state (nx, 1)
+        REF = ca.MX.sym('REF', self.nx, N)               # reference trajectory (nx, N)
 
         OBSTACLE_POS = ca.MX.sym('OBSTACLE_POS', 2)      # obstacle current position (2, 1)
         OBSTACLE_VEL = ca.MX.sym('OBSTACLE_VEL', 2)      # obstacle current velocity (2, 1)
@@ -48,9 +48,10 @@ class mpc(object):
 
             prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
             vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0],
-                                            prediction_obstacle_position[1] + 2 + vehicle_width/2 - x_k[1])
-            objective_constrained += ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) + \
-                    3**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
+                                            prediction_obstacle_position[1] + 4 - x_k[1])
+            # ref_x = ca.vertcat(prediction_obstacle_position[0] + 3.5, prediction_obstacle_position[1] + 3.5, 0, 0, 0, 0)
+            objective_constrained +=  ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) \
+                                    + 2.5**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
 
         
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))
@@ -82,11 +83,11 @@ class mpc(object):
         self.initiate_constraints()
   
     def initiate_weights(self):
-        weights = [100, 10, 10, 10, 100]
+        weights = [10, 100, 0, 0, 10]
         for _ in range(1,len(self.vehicle.vehicle)):
-            weights.append(100)
+            weights.append(0)
         self.Q = ca.diagcat(*weights)      # state weights matrix
-        self.R = ca.diagcat(10, 10)      # control weights matrix
+        self.R = ca.diagcat(5, 5)      # control weights matrix
 
     def initiate_constraints(self):
         lbx = ca.DM.zeros((self.nx*(self.N+1) +self.nu*self.N, 1))
@@ -107,11 +108,11 @@ class mpc(object):
         for i in range(4, 4 + len(self.vehicle.vehicle)):   
             ubx[i:self.nx*(self.N+1):self.nx] = ca.inf      # betha_i upper bound
 
-        lbx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] =  -ca.inf      # lower bound for steering
+        lbx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] =  -5      # lower bound for steering
         ubx[self.nx*(self.N+1):self.nx*(self.N+1) +self.nu*self.N:self.nu] = 100             # upper bound for steering
 
-        lbx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = -ca.inf   # lower bound for throttle    
-        ubx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = ca.inf    # upper bound for throttle
+        lbx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = -100   # lower bound for throttle    
+        ubx[self.nx*(self.N+1)+1 :self.nx*(self.N+1) +self.nu*self.N :self.nu] = 100    # upper bound for throttle
 
 
         lbg = ca.DM.zeros((self.nx*(self.N+1), 1))  # constraints lower bound

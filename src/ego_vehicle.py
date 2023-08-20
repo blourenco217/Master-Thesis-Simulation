@@ -11,6 +11,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 from sensor_msgs.msg import LaserScan
+from tf.transformations import euler_from_quaternion
 
 
 
@@ -29,16 +30,17 @@ class EgoVehicleController(object):
         self.rate = rospy.Rate(10) # 10 Hz
 
         dt = 1/10
-        self.controller = mpc(self.vehicle, dt, N = 10)
+        self.controller = mpc(self.vehicle, dt, N = 12)
         self.u0 = ca.DM.zeros((self.controller.nu, self.controller.N))
         self.x0 = ca.DM.zeros((self.controller.nx))
 
         self.twist_cmd = Twist()
 
-        self.position = (0.0, 0.0)  # Initialize the position
+        self.ego_pose = (0.0, 0.0, 0.0)  # Initialize the position
         self.hitch_angle = 0
 
-        self.reference = self.position[0]
+        self.reference = self.ego_pose[0]
+        self.obstacle_prev_found = False
 
         rospy.loginfo("Ego-Vehicle Controller Initialized.")
 
@@ -49,26 +51,34 @@ class EgoVehicleController(object):
             pass
     
     def odometry_callback(self, msg):
-        self.position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
+        # self.position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
+        position = msg.pose.pose.position
+        orientation = msg.pose.pose.orientation
+        self.ego_pose = (position.x, position.y, euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])[2])
     
     def hitch_angle_callback(self, msg):
         self.hitch_angle = msg.process_value
 
 
     def move(self):
+        
         while not rospy.is_shutdown():
             # self.twist_cmd.linear.x, self.twist_cmd.angular.z = self.controller.control(self.position)
-            
+            X0 = ca.repmat(self.x0, 1, self.controller.N+1)
 
-            self.controller.args['x0'] = [self.position[0], self.position[1], 0, 0, 0, 0]
+            # self.controller.args['x0'] = [self.ego_pose[0], self.ego_pose[1], X0[2, 1], X0[3, 1], self.ego_pose[2], 0]
+            self.controller.args['x0'] = [self.ego_pose[0], self.ego_pose[1], 0, 0, self.ego_pose[2], 0]
             self.cmd_vel_pub.publish(self.twist_cmd)
             self.controller.args['p'] = ca.vertcat(self.controller.args['x0'])
 
-            X0 = ca.repmat(self.x0, 1, self.controller.N+1)
+            
 
+            
             self.reference += 1
             for i in range(self.controller.N):
-                t_predict = self.reference + i * self.controller.dt 
+                self.reference = self.ego_pose[0]
+                t_predict = self.reference + 10 * i * self.controller.dt 
+
                 x_ref = 200
                 # x_ref = self.reference
                 
@@ -88,11 +98,21 @@ class EgoVehicleController(object):
                 ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
                 ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
             )
-            if self.obstacle_extraction.obstacle_ahead:
+            if self.obstacle_extraction.obstacle_ahead or self.obstacle_prev_found:
                 leftmost_boundary = np.array(self.obstacle_extraction.leftmost_boundary).reshape(2,)
                 predicted_velocity = np.array(self.obstacle_extraction.predicted_velocity).reshape(2,)
-                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0] + self.position[0], leftmost_boundary[1]+ self.position[1])
-                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[0], predicted_velocity[1])
+                
+                # if not self.obstacle_prev_found:
+                #     leftmost_boundary = np.array(self.obstacle_extraction.leftmost_boundary).reshape(2,)
+                #     predicted_velocity = np.array(self.obstacle_extraction.predicted_velocity).reshape(2,)
+                print(leftmost_boundary, self.obstacle_prev_found)
+                # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0] + self.ego_pose[0], leftmost_boundary[1]+ self.ego_pose[1])
+                # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[0], predicted_velocity[1])
+                # for _ in range(self.controller.N):
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0] + self.ego_pose[0])
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[1] + self.ego_pose[1])
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[0])
+                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[1])
                 
                 # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.obstacle_extraction.leftmost_boundary)
                 # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.obstacle_extraction.leftmost_boundary[0], self.obstacle_extraction.leftmost_boundary[1])
@@ -106,6 +126,13 @@ class EgoVehicleController(object):
                         ubg = self.controller.args['ubg'],
                         p = self.controller.args['p']
                     )
+                self.obstacle_prev_found = True
+                self.obstacle_extraction.obstacle_ahead = False
+                # detect overtake
+                if (leftmost_boundary[0] <0):
+                    self.obstacle_prev_found = False
+                    self.obstacle_extraction.obstacle_ahead = False
+
             else:
                 sol = self.controller.solver_unconstrained(
                         x0 = self.controller.args['x0'],
@@ -115,6 +142,7 @@ class EgoVehicleController(object):
                         ubg = self.controller.args['ubg'],
                         p = self.controller.args['p']
                     )
+                # print(self.controller.solver_unconstrained.stats()['return_status'])
             u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
             X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
             # print(X0)
@@ -134,6 +162,9 @@ class EgoVehicleController(object):
             # self.twist_cmd.angular.z = self.controller.args['x0'][4]
 
             self.x0 = X0[:,1]
+            self.x0[0] = self.ego_pose[0]
+            self.x0[1] = self.ego_pose[1]
+            self.x0[2] = self.ego_pose[2]
             self.cmd_vel_pub.publish(self.twist_cmd)
             command = Float64()
             command.data = X0[4, 1] - X0[5, 1]
@@ -154,15 +185,15 @@ class MoveAndPrintPosition:
         self.twist_cmd.linear.x = 3.0   # Set the desired linear velocity
         self.twist_cmd.angular.z = 0.0  # No angular velocity
 
-        self.position = (0.0, 0.0)  # Initialize the position
+        self.ego_pose = (0.0, 0.0)  # Initialize the position
 
     def odom_callback(self, msg):
-        self.position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
+        self.ego_pose = (msg.pose.pose.position.x, msg.pose.pose.position.y)
 
     def move_straight(self):
         while not rospy.is_shutdown():
             self.pub.publish(self.twist_cmd)
-            rospy.loginfo("Current position: x = {:.2f}, y = {:.2f}".format(*self.position))
+            rospy.loginfo("Current position: x = {:.2f}, y = {:.2f}".format(*self.ego_pose))
             self.rate.sleep()
 
 def control_hitch_joint():
