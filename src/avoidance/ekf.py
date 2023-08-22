@@ -19,10 +19,11 @@ class ExtendedKalmanFilter(object):
 
         B = np.array([[0.5 * delta_t ** 2], [0.5 * delta_t ** 2], [delta_t], [delta_t], [1], [1]])  # Control input matrix
         # Q = block_diag(self.process_noise_covariance, np.zeros((4, 4)))  # Process noise covariance
+        Q = self.process_noise_covariance
 
         # Prediction step
         self.state = A @ self.state  # x = Ax + Bu
-        self.covariance = A @ self.covariance @ A.T #+ Q  # P = APA' + Q
+        self.covariance = A @ self.covariance @ A.T + Q  # P = APA' + Q
 
     def update(self, measurement):
         measurement = np.array(measurement).reshape((2, 1))
@@ -34,9 +35,9 @@ class ExtendedKalmanFilter(object):
         K = self.covariance @ H.T @ inv(H @ self.covariance @ H.T + R)
 
         # Update step
-        innovation = measurement - H @ self.state  # y = z - Hx
+        error = measurement - H @ self.state  # y = z - Hx
         
-        self.state = self.state + K @ innovation  # x = x + Ky
+        self.state = self.state + K @ error  # x = x + Ky
         self.covariance = (np.eye(6) - K @ H) @ self.covariance  # P = (I - KH)P
 
     def get_state(self):

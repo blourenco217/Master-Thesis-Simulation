@@ -12,6 +12,9 @@ from avoidance.ekf import ExtendedKalmanFilter
 from avoidance.utils import *
 
 
+verbose = True
+
+
 class ObstacleExtraction(object):
     def __init__(self):
         # rospy.init_node('obstacle_extraction', anonymous=True)
@@ -22,8 +25,7 @@ class ObstacleExtraction(object):
         self.obstacle_ahead = False
 
         self.ego_pose = (0.0, 0.0, 0.0)  # Initialize the position
-        # self.leftmost_boundary = [-float('inf'), 0]
-        self.leftmost_boundary = [3.5, 3.5]
+        self.leftmost_boundary = [-float('inf'), 0]
         self.predicted_velocity = [0, 0]
 
         self.ekf = ExtendedKalmanFilter(
@@ -55,14 +57,13 @@ class ObstacleExtraction(object):
                 if lidar_ranges[i] != float('inf')  # Filter out points with distance infinity
             ]
 
-            if len(lidar_points) > 0:
-                # Transform lidar points to ego vehicle frame using odometry
+            if len(lidar_points) > 3:
                 transformed_points = [
                     [
-                        # point[0] * np.cos(self.ego_pose[2]) - point[1] * np.sin(self.ego_pose[2]) + self.ego_pose[0],
-                        # point[0] * np.sin(self.ego_pose[2]) + point[1] * np.cos(self.ego_pose[2]) + self.ego_pose[1]
-                        point[0] + self.ego_pose[0],
-                        point[1] + self.ego_pose[1]
+                        # point[0] + self.ego_pose[0],
+                        # point[1] + self.ego_pose[1]
+                        point[0],
+                        point[1]
                     ]
                     for point in lidar_points
                 ]
@@ -71,10 +72,33 @@ class ObstacleExtraction(object):
                 alpha = np.arccos(rotation[0, 0]) # from rotation matrix to angle rotation
                 leftmost_boundary = retrieve_leftmost_boundary(center, radii, alpha)
 
+                if leftmost_boundary == [] or leftmost_boundary == [-float('inf'), 0]:
+                    # rospy.loginfo('ATTENTIONE BOLSADIATRICCEE')
+                    leftmost_boundary = [self.leftmost_boundary]
+
+                # transformation should be performed heres
+                # rospy.loginfo('ATTENTIONE PICKPOCKET Leftmost Boundary Point: {}'.format(leftmost_boundary))
+                # rospy.loginfo('ATTENTIONE PICKPOCKET Ego: {}\n'.format(self.ego_pose))
+                leftmost_boundary[0][0]
+                leftmost_boundary[0][1]
+                self.ego_pose[0]
+                self.ego_pose[1]
+                
+                leftmost_boundary = [ leftmost_boundary[0][0] + self.ego_pose[0], leftmost_boundary[0][1] + self.ego_pose[1] ]
+                
+
+                # if verbose:
+                    # rospy.loginfo('POINTSS LIDAR: {} \n'.format(lidar_points))
+                    # rospy.loginfo('POINTSS TRANSFORMED: {} \n'.format(transformed_points))
+                    # rospy.loginfo('ATTENTIONE PICKPOCKET Center: {}\n'.format(center))
+                    # rospy.loginfo('ATTENTIONE PICKPOCKET Radii: {}\n'.format(radii))
+                    # rospy.loginfo('ATTENTIONE PICKPOCKET Rotation: {}\n'.format(rotation))
+                    # rospy.loginfo('ATTENTIONE PICKPOCKET Leftmost Boundary Point: {}\n'.format(leftmost_boundary))
+                    # rospy.loginfo('ATTENTIONE PICKPOCKET Ego: {}'.format(self.ego_pose))
+
                 # compute displacement
                 displacement = np.linalg.norm(np.array(leftmost_boundary) - np.array(self.leftmost_boundary))
                 if displacement > 0.2:
-                    # print('Dynamic Obstacle Detected')
 
                     # EKF prediction
                     delta_t = 0.1  # Adjust the time step as needed
@@ -94,7 +118,7 @@ class ObstacleExtraction(object):
                     self.prev_velocity = measured_velocity
                     # print('Predicted Obstacle Velocity (x, y):', self.predicted_velocity)
                     self.leftmost_boundary = leftmost_boundary
-            
+
                 else:
                     pass
                     # print('Static Obstacle Detected')

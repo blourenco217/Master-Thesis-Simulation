@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import linalg
+import rospy
 
 def quadratic_equation(a, b, c):
     if b**2 - 4*a*c < 0:
@@ -100,6 +101,8 @@ def retrieve_leftmost_boundary(center, radii, rotation):
         theta_m = (theta_min + theta_max) / 2
 
         intersection_points = line_ellipse_intersection(center, radii, rotation, theta_m)
+        # rospy.loginfo('THETA: {}'.format(theta_m))
+        # rospy.loginfo('INTERSECTION POINTS: {}\n'.format(intersection_points))
 
         if len(intersection_points) == 1:
             leftmost_boundary = intersection_points

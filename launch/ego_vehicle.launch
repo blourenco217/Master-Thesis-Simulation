@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
+  <!-- <node pkg="rosbag" type="filter" name="bag_filter" args="filter input.bag output_filtered.bag '!topic == /ego_vehicle/laser_scan'"/> -->
+
 <!-- Load Gazebo with the world file -->
   <arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -11,7 +13,7 @@
   <group ns="/ego_vehicle">
     <param name="tf_prefix" value="ego_vehicle_tf" />
     <param name="/ego_vehicle/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/ego_vehicle.xacro"/>
-      <arg name="init_pose" value="-x -50 -y 3.5 -z 0" />
+      <arg name="init_pose" value="-x -35 -y 3.5 -z 0" />
       <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model ego_vehicle -param robot_description " respawn="false" output="screen">
       </node>
@@ -22,7 +24,7 @@
       hitch_joint_position_controller
       --timeout 60">
     </node>
-    <node name="control_ego_vehicle" pkg="my_truckie" type="ego_vehicle.py" output="screen" args="--timeout 10" />
+    <node name="control_ego_vehicle" pkg="my_truckie" type="ego_vehicle.py" output="screen" args="--timeout 30" />
   </group>
 
 
@@ -30,11 +32,29 @@
   <group ns="/npc1">
     <param name="tf_prefix" value="npc1_tf" />
     <param name="/npc1/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/npc.urdf.xacro"/>
-      <arg name="init_pose" value="-x 15.0 -y 3.5 -z 0" />
+      <arg name="init_pose" value="-x 0 -y 3.5 -z 0" />
       <node name="urdf_spawner_1" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model npc1 -param robot_description " respawn="false" output="screen">
       </node>
     <node name="control_npc" pkg="my_truckie" type="spawn_obstacles.py" args="npc1 2" output="screen" />
+  </group>
+
+    <group ns="/follower_vehicle_1">
+    <param name="tf_prefix" value="follower_tf" />
+    <param name="follower_id" value="1" />
+    <param name="/follower_vehicle_1/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/follower_vehicle.xacro"/>
+      <arg name="init_pose" value="-x -50 -y 3.5 -z 0" />
+      <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
+        args="$(arg init_pose) -unpause -urdf -model follower_vehicle_1 -param robot_description " respawn="false" output="screen">
+      </node>
+    <rosparam file="$(find my_truckie)/config/joints.yaml" command="load" />
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+      output="screen"
+      args="joint_state_controller
+      hitch_joint_position_controller
+      --timeout 60">
+    </node>
+    <node name="control_follower_vehicle_1" pkg="my_truckie" type="follower_vehicle.py" output="screen" args="follower_vehicle_1 --timeout 10" />
   </group>
 
 </launch>

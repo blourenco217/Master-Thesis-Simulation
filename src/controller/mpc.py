@@ -46,12 +46,12 @@ class mpc(object):
             st_next_RK4 = rk4(vehicle.dynamics, x_k[:4 + len(vehicle.vehicle)], u_k[:2], self.dt) 
             dynamics_constraints = ca.vertcat(dynamics_constraints, st_next - st_next_RK4)
 
-            prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
-            vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0],
-                                            prediction_obstacle_position[1] + 4 - x_k[1])
-            # ref_x = ca.vertcat(prediction_obstacle_position[0] + 3.5, prediction_obstacle_position[1] + 3.5, 0, 0, 0, 0)
-            objective_constrained +=  ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) \
-                                    + 2.5**k * ca.dot(ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1]), vector_to_obstacle)
+            # prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
+            prediction_obstacle_position = (OBSTACLE_POS[0] + k * 2 * self.dt, OBSTACLE_POS[1])
+            vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0], prediction_obstacle_position[1] + 1.5 - x_k[1])
+            vector_velocity = ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1])
+            objective_constrained += ((x_k - ref_x).T  @ (x_k - ref_x))+ (u_k).T  @ (u_k) + \
+                     3.4**(k+1.35) * ca.dot(vector_velocity, vector_to_obstacle)
 
         
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))
@@ -123,22 +123,3 @@ class mpc(object):
             'lbx': lbx,
             'ubx': ubx
         }
-
-
-    # def is_within_obstacle(self, X0):
-    #     # detect obstacle in horizon
-
-    #     for i in range(len(self.obstacle.center_obstacle)):
-    #         for j in range(self.N):
-    #             pos = ca.vertcat(X0[0,j], X0[1,j])
-    #             dist = ca.norm_2(pos - self.obstacle.center_obstacle[i])
-    #             if dist < self.obstacle.radius_obstacle[i]:
-    #                 return True, i
-    #     return False
-    
-    # def has_overtaken_obstacle(self, X0, inx):
-    #     # detect obstacle in horizon
-    #     for i in range(len(self.obstacle.center_obstacle)):
-    #         if X0[0,0] >= self.obstacle.center_obstacle[inx][0]:
-    #             return True, i
-    #     return False, i

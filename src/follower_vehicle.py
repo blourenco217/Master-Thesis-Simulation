@@ -9,6 +9,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 from tf.transformations import euler_from_quaternion
+from control_msgs.msg import JointControllerState
 import sys 
 
 class FollowerCACCNode(object):
@@ -59,7 +60,7 @@ class FollowerCACCNode(object):
 
 
         self.hitch_angle_pub = rospy.Publisher('/follower_vehicle/hitch_joint_position_controller/command', Float64, queue_size=10)
-        self.hitch_angle_sub = rospy.Subscriber('/follower_vehicle/hitch_joint_position_controller/state', Float64, self.hitch_angle_callback)
+        self.hitch_angle_sub = rospy.Subscriber('/follower_vehicle/hitch_joint_position_controller/state', JointControllerState, self.hitch_angle_callback)
         self.hitch_angle = 0
     
     def cmd_vel_proceder_callback(self, cmd_vel_msg):
@@ -105,19 +106,21 @@ class FollowerCACCNode(object):
 
                 vel_ref = np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2)
 
+                length_truck = 8
+
                 if vel_ref < 2:
                     # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
                     vel_ref = 0
-                    x_ref = self.follower_pose[0]
-                    y_ref = self.follower_pose[1]
+                    x_ref = self.follower_pose[0] - length_truck * np.cos(self.follower_pose[2])
+                    y_ref = self.follower_pose[1] - length_truck * np.sin(self.follower_pose[2])
                 else:
 
                     if self.follower_id > 1:
-                        x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1)
-                        y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1)
+                        x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.proceder_pose[2])
+                        y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.proceder_pose[2])
                     else:
-                        x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1)
-                        y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1)
+                        x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.ego_pose[2])
+                        y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.ego_pose[2])
 
                     
 
