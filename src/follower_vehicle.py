@@ -62,6 +62,11 @@ class FollowerCACCNode(object):
         self.hitch_angle_pub = rospy.Publisher('/follower_vehicle/hitch_joint_position_controller/command', Float64, queue_size=10)
         self.hitch_angle_sub = rospy.Subscriber('/follower_vehicle/hitch_joint_position_controller/state', JointControllerState, self.hitch_angle_callback)
         self.hitch_angle = 0
+
+        self.save_data = False
+        self.state_array = []
+        self.input_array = []
+        self.time_array = []
     
     def cmd_vel_proceder_callback(self, cmd_vel_msg):
         self.proceder_twist = cmd_vel_msg
@@ -92,72 +97,90 @@ class FollowerCACCNode(object):
 
         
     def control_loop(self):
-        
-        while not rospy.is_shutdown():
-            X0 = ca.repmat(self.x0, 1, self.controller.N+1)
-            self.controller.args['x0'] = [self.follower_pose[0], self.follower_pose[1], 0, 0, self.follower_pose[2], 0]
-            self.cmd_vel_pub.publish(self.follower_twist)
-            self.controller.args['p'] = ca.vertcat(self.controller.args['x0'])
+        try:
+            while not rospy.is_shutdown():
+                X0 = ca.repmat(self.x0, 1, self.controller.N+1)
+                self.controller.args['x0'] = [self.follower_pose[0], self.follower_pose[1], float(self.x0[2]), float(self.x0[3]), self.follower_pose[2], float(self.x0[5])]
+                self.cmd_vel_pub.publish(self.follower_twist)
+                self.controller.args['p'] = ca.vertcat(self.controller.args['x0'])
 
-            for i in range(self.controller.N):
-                # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.ego_pose[0], self.ego_pose[1], 
-                #                                        np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2), self.ego_vel[2],
-                #                                          self.ego_pose[2], 0)
+                for i in range(self.controller.N):
+                    # self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.ego_pose[0], self.ego_pose[1], 
+                    #                                        np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2), self.ego_vel[2],
+                    #                                          self.ego_pose[2], 0)
 
-                vel_ref = np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2)
+                    vel_ref = np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2)
 
-                length_truck = 8
+                    length_truck = 8
 
-                if vel_ref < 2:
-                    # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
-                    vel_ref = 0
-                    x_ref = self.follower_pose[0] - length_truck * np.cos(self.follower_pose[2])
-                    y_ref = self.follower_pose[1] - length_truck * np.sin(self.follower_pose[2])
-                else:
-
-                    if self.follower_id > 1:
-                        x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.proceder_pose[2])
-                        y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.proceder_pose[2])
+                    if vel_ref < 2:
+                        # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
+                        vel_ref = 0
+                        x_ref = self.follower_pose[0] - length_truck * np.cos(self.follower_pose[2])
+                        y_ref = self.follower_pose[1] - length_truck * np.sin(self.follower_pose[2])
                     else:
-                        x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.ego_pose[2])
-                        y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.ego_pose[2])
 
-                    
+                        if self.follower_id > 1:
+                            x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.proceder_pose[2])
+                            y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.proceder_pose[2])
+                        else:
+                            x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.ego_pose[2])
+                            y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.ego_pose[2])
 
-                self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, vel_ref, 0, 0, 0)
+                        
 
-            self.controller.args['x0'] = ca.vertcat(
-                ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
-                ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
-            )
+                    self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, vel_ref, 0, 0, 0)
 
-            sol = self.controller.solver_unconstrained(
-                        x0 = self.controller.args['x0'],
-                        lbx = self.controller.args['lbx'],
-                        ubx = self.controller.args['ubx'],
-                        lbg = self.controller.args['lbg'],
-                        ubg = self.controller.args['ubg'],
-                        p = self.controller.args['p']
-                    )
-            # print(self.controller.solver_unconstrained.stats()['return_status'])
-            u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
-            X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
-            
-            self.u0 = u
-            # print(X0[0,1], X0[1,1])
-            self.follower_twist.linear.x = X0[2,1]
-            self.follower_twist.angular.z = X0[3,1]
-            self.x0 = X0[:,1]
+                self.controller.args['x0'] = ca.vertcat(
+                    ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
+                    ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
+                )
 
-            self.x0[0] = self.follower_pose[0]
-            self.x0[1] = self.follower_pose[1]
-            self.x0[2] = self.follower_pose[2]
-            self.cmd_vel_pub.publish(self.follower_twist)
-            command = Float64()
-            command.data = X0[4, 1] - X0[5, 1]
-            self.hitch_angle_pub.publish(command)
-            self.rate.sleep()
+                sol = self.controller.solver_unconstrained(
+                            x0 = self.controller.args['x0'],
+                            lbx = self.controller.args['lbx'],
+                            ubx = self.controller.args['ubx'],
+                            lbg = self.controller.args['lbg'],
+                            ubg = self.controller.args['ubg'],
+                            p = self.controller.args['p']
+                        )
+                # print(self.controller.solver_unconstrained.stats()['return_status'])
+                u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
+                X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
+                
+                self.u0 = u
+                # print(X0[0,1], X0[1,1])
+                self.follower_twist.linear.x = X0[2,1]
+                self.follower_twist.angular.z = X0[3,1]
+                self.x0 = X0[:,1]
 
+                self.x0[0] = self.follower_pose[0]
+                self.x0[1] = self.follower_pose[1]
+                self.x0[2] = self.follower_pose[2]
+                self.cmd_vel_pub.publish(self.follower_twist)
+                command = Float64()
+                command.data = X0[4, 1] - X0[5, 1]
+                self.hitch_angle_pub.publish(command)
+
+
+                if self.save_data:
+                    # Store states, inputs, and time in arrays
+                    self.state_array.append(self.x0.full())
+                    self.input_array.append(u.full())
+                    self.time_array.append(rospy.Time.now().to_sec())  # Use current time
+                
+                self.rate.sleep()
+        finally:
+            if self.save_data:
+                print("SAVING FOLLOWER VEHICLE DATA ...")
+                # Save the collected data to numpy arrays
+                state_array = np.array(self.state_array)
+                input_array = np.array(self.input_array)
+                time_array = np.array(self.time_array)
+
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_'+ str(self.follower_id) +'_state_array.npy', state_array)
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_'+ str(self.follower_id) +'_input_array.npy', input_array)
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_'+ str(self.follower_id) +'_time_array.npy', time_array)
 
 if __name__ == '__main__':
     try:

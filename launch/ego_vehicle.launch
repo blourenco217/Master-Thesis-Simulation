@@ -39,7 +39,7 @@
     <node name="control_npc" pkg="my_truckie" type="spawn_obstacles.py" args="npc1 2" output="screen" />
   </group>
 
-    <group ns="/follower_vehicle_1">
+  <group ns="/follower_vehicle_1">
     <param name="tf_prefix" value="follower_tf" />
     <param name="follower_id" value="1" />
     <param name="/follower_vehicle_1/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/follower_vehicle.xacro"/>
