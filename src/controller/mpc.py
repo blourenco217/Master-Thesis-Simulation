@@ -46,12 +46,12 @@ class mpc(object):
             st_next_RK4 = rk4(vehicle.dynamics, x_k[:4 + len(vehicle.vehicle)], u_k[:2], self.dt) 
             dynamics_constraints = ca.vertcat(dynamics_constraints, st_next - st_next_RK4)
 
-            # prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
-            prediction_obstacle_position = (OBSTACLE_POS[0] + k * 2 * self.dt, OBSTACLE_POS[1])
+            prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
+            # prediction_obstacle_position = (OBSTACLE_POS[0] + k * 2 * self.dt, OBSTACLE_POS[1])
             vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0], prediction_obstacle_position[1] + 1.5 - x_k[1])
             vector_velocity = ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1])
             objective_constrained += ((x_k - ref_x).T  @ (x_k - ref_x))+ (u_k).T  @ (u_k) + \
-                     3.4**(k+1.35) * ca.dot(vector_velocity, vector_to_obstacle)
+                     3.4**(k + 1.35) * ca.dot(vector_velocity, vector_to_obstacle)
 
         
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))

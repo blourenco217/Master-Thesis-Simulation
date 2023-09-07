@@ -16,12 +16,14 @@ The goal of this simulation environment is to evaluate the proposed approach for
 ## Contents
 
 - **launch**: Contains launch files for starting the simulation environment.
-   - `platoon.launch`: A basic lane changing maneuver.
-   - `static_obstacle.py`: A static obstacle avoidance scenario.
-   - `overtake.py`: A dynamic obstacle avoidance scenario.
-   - `braking.py`: Abrupt braking for the ego vehicle within a platoon.
+   - `world.launch`: Launches the simulation highway environment.
+   - `platoon.launch`: Launches the simulation environment for basic lane-changing maneuvers within a platoon.
+   - `static_obstacle.launch`: Initiates the simulation environment for static obstacle avoidance scenarios.
+   - `overtake.launch`: Sets up the simulation environment for overtaking scenarios involving dynamic obstacles.
+   - `braking.launch`: Launches the simulation environment to evaluate the ego vehicle's response to abrupt braking scenarios.
+   - `rviz.launch`: Launches the RViz visualization tool for real-time visualization of the simulation environment.
 - **config**: Configuration files for setting up simulation parameters and vehicle properties.
-- **scripts**: Python scripts implementing the proposed control approach and scenario setups.
+- **scr**: Python scripts implementing the proposed control approach and scenario setups.
 - **worlds**: Gazebo world files representing different road and traffic scenarios.
 - **rviz**: RViz configuration files for visualizing the simulation environment.
 
@@ -49,4 +51,4 @@ The goal of this simulation environment is to evaluate the proposed approach for
 
 
 
-For questions or inquiries, please contact blourenco217@gmai.com.
+For questions or inquiries, please contact blourenco217@gmail.com.

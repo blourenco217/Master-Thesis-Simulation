@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Define macros -->
+  <xacro:macro name="box" params="name size mass">
+    <link name="${name}_link">
+      <visual>
+        <origin xyz="0 0 ${size}" rpy="0 0 0" />
+        <geometry>
+          <box size="${size} ${size} ${size}" />
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${size}" />
+        <geometry>
+          <box size="${size} ${size} ${size}" rpy="0 0 0" />
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="${mass}" />
+        <origin xyz="0 0 0" />
+        <inertia ixx="${mass*(size*size)/6}" ixy="0" ixz="0" iyy="${mass*(size*size)/6}" iyz="0" izz="${mass*(size*size)/6}" />
+      </inertial>
+    </link>
+  </xacro:macro>
+
+  <!-- Usage of macros -->
+  <xacro:box name="box_model" size="2.5" mass="1.0"/>
+
+</robot>

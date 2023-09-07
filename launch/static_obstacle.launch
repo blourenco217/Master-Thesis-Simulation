@@ -2,16 +2,22 @@
 <launch>
 
 <!-- Load Gazebo with the world file -->
-  <!-- <arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
-  <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(arg world_file)" />
-    <arg name="use_sim_time" value="true"/>
-  </include> -->
+<arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
+<include file="$(find gazebo_ros)/launch/empty_world.launch">
+  <arg name="world_name" value="$(arg world_file)" />
+  <arg name="use_sim_time" value="true"/>
+</include>
+
+<!-- Spawn a static model -->
+  <param name="box_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/box.xacro"/>
+  <node name="spawn_box" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+      args="-urdf -param box_description -model my_box_model -x 10.0 -y 3.5 -z 0.0 -Y 0.0" />
+
 
   <group ns="/ego_vehicle">
     <param name="tf_prefix" value="ego_vehicle_tf" />
     <param name="/ego_vehicle/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/ego_vehicle.xacro"/>
-      <arg name="init_pose" value="-x -20 -y 3.5 -z 0" />
+      <arg name="init_pose" value="-x -30 -y 3.5 -z 0" />
       <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model ego_vehicle -param robot_description " respawn="false" output="screen">
       </node>
@@ -29,7 +35,7 @@
     <param name="tf_prefix" value="follower_tf" />
     <param name="follower_id" value="1" />
     <param name="/follower_vehicle_1/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/follower_vehicle.xacro"/>
-      <arg name="init_pose" value="-x -35 -y 3.5 -z 0" />
+      <arg name="init_pose" value="-x -40 -y 3.5 -z 0" />
       <node name="urdf_spawner_ev" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model follower_vehicle_1 -param robot_description " respawn="false" output="screen">
       </node>
@@ -60,6 +66,4 @@
     </node>
     <node name="control_follower_vehicle_2" pkg="my_truckie" type="follower_vehicle.py" output="screen" args="follower_vehicle_2 --timeout 10" />
   </group>
-
-
 </launch>

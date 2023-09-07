@@ -98,7 +98,8 @@ class ObstacleExtraction(object):
 
                 # compute displacement
                 displacement = np.linalg.norm(np.array(leftmost_boundary) - np.array(self.leftmost_boundary))
-                if displacement > 0.2:
+                if displacement > 0.1:
+                # if True:
 
                     # EKF prediction
                     delta_t = 0.1  # Adjust the time step as needed
@@ -120,7 +121,9 @@ class ObstacleExtraction(object):
                     self.leftmost_boundary = leftmost_boundary
 
                 else:
-                    pass
+                    # static obstacle
+                    self.predicted_velocity = [0,0]
+                    self.leftmost_boundary = leftmost_boundary
                     # print('Static Obstacle Detected')
                 # self.leftmost_boundary = leftmost_boundary
                 # print('Leftmost Boundary Point:', self.leftmost_boundary)

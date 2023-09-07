@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+
+<!-- Load Gazebo with the world file -->
+<arg name="world_file" default="$(find my_truckie)/worlds/highway.world" />
+<include file="$(find gazebo_ros)/launch/empty_world.launch">
+  <arg name="world_name" value="$(arg world_file)" />
+  <arg name="use_sim_time" value="true"/>
+</include>
+
+</launch>

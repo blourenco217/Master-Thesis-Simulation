@@ -63,7 +63,7 @@ class FollowerCACCNode(object):
         self.hitch_angle_sub = rospy.Subscriber('/follower_vehicle/hitch_joint_position_controller/state', JointControllerState, self.hitch_angle_callback)
         self.hitch_angle = 0
 
-        self.save_data = False
+        self.save_data = True
         self.state_array = []
         self.input_array = []
         self.time_array = []
@@ -113,19 +113,26 @@ class FollowerCACCNode(object):
 
                     length_truck = 8
 
-                    if vel_ref < 2:
-                        # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
-                        vel_ref = 0
-                        x_ref = self.follower_pose[0] - length_truck * np.cos(self.follower_pose[2])
-                        y_ref = self.follower_pose[1] - length_truck * np.sin(self.follower_pose[2])
-                    else:
+                    # if vel_ref < 2:
+                    #     # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
+                    #     vel_ref = 0
+                    #     x_ref = self.follower_pose[0] - length_truck * np.cos(self.follower_pose[2])
+                    #     y_ref = self.follower_pose[1] - length_truck * np.sin(self.follower_pose[2])
+                    # else:
 
-                        if self.follower_id > 1:
+                    #     if self.follower_id > 1:
+                    #         x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.proceder_pose[2])
+                    #         y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.proceder_pose[2])
+                    #     else:
+                    #         x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.ego_pose[2])
+                    #         y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.ego_pose[2])
+                    
+                    if self.follower_id > 1:
                             x_ref = self.proceder_pose[0] + self.proceder_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.proceder_pose[2])
                             y_ref = self.proceder_pose[1] + self.proceder_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.proceder_pose[2])
-                        else:
-                            x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.ego_pose[2])
-                            y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.ego_pose[2])
+                    else:
+                        x_ref = self.ego_pose[0] + self.ego_vel[0] * self.controller.dt * (i+1) - length_truck * np.cos(self.ego_pose[2])
+                        y_ref = self.ego_pose[1] + self.ego_vel[1] * self.controller.dt * (i+1) - length_truck * np.sin(self.ego_pose[2])
 
                         
 
@@ -172,7 +179,7 @@ class FollowerCACCNode(object):
                 self.rate.sleep()
         finally:
             if self.save_data:
-                print("SAVING FOLLOWER VEHICLE DATA ...")
+                print("SAVING FOLLOWER {} VEHICLE DATA ...".format(self.follower_id))
                 # Save the collected data to numpy arrays
                 state_array = np.array(self.state_array)
                 input_array = np.array(self.input_array)

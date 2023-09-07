@@ -41,7 +41,7 @@ class EgoVehicleController(object):
         self.hitch_angle = 0
         self.overtaken = True # if overtaken is True, then the ego vehicle is behind the obstacle
 
-        self.save_data = False
+        self.save_data = True
         self.state_array = []
         self.input_array = []
         self.time_array = []

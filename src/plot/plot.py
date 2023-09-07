@@ -1,26 +1,30 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-fig_width_pt = 455.24408             
-inches_per_pt = 1.0/72.27            
-golden_mean = (np.sqrt(5)-1.0)/2.0       
-fig_width = fig_width_pt*inches_per_pt   
-fig_height = fig_width*golden_mean        
-fig_size =  [fig_width,fig_height]
-params = {'axes.labelsize' : 10,
-          'font.size' : 10,
-          'legend.fontsize': 10,
+
+params = {'axes.labelsize' : 9,
+          'font.size' : 9,
+          'legend.fontsize': 9,
           'xtick.labelsize' : 8,
           'ytick.labelsize' : 8,
-          'figure.figsize': fig_size,
+        #   'figure.figsize': fig_size,
           'font.family' : 'sans-serif',
-          'font.sans-serif' : 'DejaVu Sans',
+          'font.sans-serif' : 'Helvetica',
           'text.usetex' : True,
-          'mathtext.fontset' : 'dejavusans',
+          'mathtext.fontset' : 'custom',
         #   'axes.prop_cycle': plt.cycler('color', ['#EE7733', '#0077BB', '#33BBEE', '#EE3377', '#CC3311', '#009988', '#BBBBBB']),
-          'axes.prop_cycle': plt.cycler('color', ['#4477AA', '#EE6677', '#228833', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB']),
-        #   'axes.prop_cycle': plt.cycler('color', ['#0C5DA5', '#00B945', '#FF9500', '#FF2C00', '#845B97', '#474747', '#9e9e9e']),
-        #   'axes.prop_cycle': plt.cycler('color', ['#4165c0', '#e770a2', '#5ac3be', '#696969', '#f79a1e', '#ba7dcd']),
+        #   'axes.prop_cycle': plt.cycler('color', ['#4477AA', '#EE6677', '#228833', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB']),
+          'axes.prop_cycle': plt.cycler('color', ['#0C5DA5', '#00B945', '#FF9500', '#FF2C00', '#845B97', '#474747', '#9e9e9e']), # bright colors
+        #   'axes.prop_cycle': plt.cycler('color', ['#4165c0', '#e770a2', '#5ac3be', '#696969', '#f79a1e', '#ba7dcd']), # very muted colors
+
+          # Grid lines
+          'axes.grid' : True,
+          'axes.axisbelow' : True,
+          'grid.color' : 'k',
+          'grid.alpha' : 0.5,
+          'grid.linewidth' : 0.5,
+
+          # Legend
           'legend.frameon' : True,
           'legend.framealpha' : 1.0,
           'legend.fancybox' : True,
@@ -29,10 +33,9 @@ params = {'axes.labelsize' : 10,
 plt.rcParams.update(params)
 
 
-def style_plot(time_array, data_arrays, legend_labels, x_label, y_label, title, save_path):
-    """
-    Generates IEEE-style plots for different variations over time and saves them in a vectorized manner.
 
+def data_over_time(time_array, data_arrays, legend_labels, x_label, y_label, title, save_path):
+    """
     Parameters:
         time_array (array-like): Time values.
         data_arrays (list of array-like): List of data arrays for different variations.
@@ -45,15 +48,19 @@ def style_plot(time_array, data_arrays, legend_labels, x_label, y_label, title, 
     Returns:
         None
     """
-    plt.figure(figsize=(8, 5))  # Adjust the figure size as needed
+    plt.figure(figsize=(3.54,3.54), dpi=600)  # Adjust the figure size as needed
 
     for i, data in enumerate(data_arrays):
         plt.plot(time_array, data, label=legend_labels[i])
 
     plt.xlabel(x_label)  # LaTeX formatted label
     plt.ylabel(y_label)  # LaTeX formatted label
-    # plt.title(title)
     plt.legend()
+    # plt.title(title)
+    # plt.legend(loc='upper right')  # Placing legend within the axis boundaries
+    # plt.gca().set_aspect('equal', adjustable='box')  # Keeping the aspect ratio square
+
+    # plt.legend()
 
     plt.grid(True)
     plt.tight_layout()
@@ -63,34 +70,106 @@ def style_plot(time_array, data_arrays, legend_labels, x_label, y_label, title, 
 
     plt.show()
 
+def data_over_data(x_arrays, y_arrays, legend_labels, x_label, y_label, title, save_path):
 
-##### TESTING #####
-# Example usage
-# time_array = np.linspace(0, 10, 100)  # Example time values
-# data_arrays = [
-#     np.sin(time_array),            # Example data array 1
-#     np.cos(time_array),            # Example data array 2
-#     0.5 * np.sin(2 * time_array)   # Example data array 3
-# ]
-# legend_labels = ['$\sin$', '$\cos$', '$0.5\sin(2x)$']
-# x_label = 'Time ($x$)'
-# y_label = 'Amplitude ($y$)'
-# title = 'IEEE-Style Plot with Variations'
-save_path = './src/my_truckie/results/plots/'
+    plt.figure(figsize=(3.54,3.54), dpi=600)  # Adjust the figure size as needed
 
+    for i, (x_data, y_data) in enumerate(zip(x_arrays, y_arrays)):
+        plt.plot(x_data, y_data, label=legend_labels[i])
 
-state_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_state_array.npy').T[0]
-input_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_input_array.npy').T[0]
-time_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_time_array.npy')
+    plt.xlabel(x_label) 
+    plt.ylabel(y_label) 
+    plt.legend()
+
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.savefig(save_path, format='pdf')
+
+    plt.show()
 
 
-# Plot the states over time
-time_indices = np.arange(time_array.size)
-legend_labels = ['State 1', 'State 2', 'State 3', 'State 4', 'State 5', 'State 6']
-# style_plot(time_indices, state_array, legend_labels, 'time $t$', 'Value', 'States Over Time', save_path + 'states_plot.pdf')
+lane_changing = False
+obstacle_avoidance = False
+static_obstacle = True
+braking = False
 
-# Plot the inputs over time
-# legend_labels = ['Input 1', 'Input 2']
-# style_plot(time_indices, input_array, legend_labels, 'Time Index', 'Value', 'Inputs Over Time', save_path +'inputs_plot.pdf')
+# Obstacle avoidance - Overtake scenario: preprocessing data
+if lane_changing:
+    pass
+elif obstacle_avoidance:
+    save_path = './src/my_truckie/results/plots/'
+    state_ego_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy').T[0][:2]  # Extract first two arrays: x and y 
+    time_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array.npy')
+    state_follower_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_state_array.npy').T[0][:2]  # Extract first two arrays
+    
+    index = 10
+    time_array = time_array[index:]
+    time_array = time_array - time_array[0]
+    state_ego_array = state_ego_array[:,index:]  # discard first state
+    state_follower_array = state_follower_array[:,index:] # discard first state
+    combined_state_array = np.vstack((state_ego_array, state_follower_array))
+    legend_labels = ['$x$ - Ego vehicle', '$y$ - Ego vehicle', '$x$ - Follower vehicle', '$y$ - Follower vehicle']
+    data_over_time(time_array, combined_state_array , legend_labels, 'time $t$ (s)', 'position (m)', 'States Over Time', save_path + '05_obstacle_avoidance_position_time.pdf')
 
-style_plot(time_array, state_array, legend_labels, 'time $t$', 'Value', 'States Over Time', save_path + 'states_plot.pdf')
+    legend_labels = ['$(x,y)$ - Ego vehicle', '$(x,y)$ - Follower vehicle']
+    data_over_data(np.vstack((state_ego_array[0], state_follower_array[0])), np.vstack((state_ego_array[1], state_follower_array[1])), legend_labels, '$x$ (m)', '$y$ (m)', 'States Over Time', save_path + '05_obstacle_avoidance_position.pdf')
+
+    vel_ego_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy').T[0][2]
+    vel_ego_vehicle = vel_ego_vehicle[index:]
+    vel_follower_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_state_array.npy').T[0][2]
+    vel_follower_vehicle = vel_follower_vehicle[index:]
+    vel_array = np.vstack((vel_ego_vehicle, vel_follower_vehicle))
+    legend_labels = ['Ego vehicle', 'Follower vehicle']
+    data_over_time(time_array, vel_array, legend_labels, 'time $t$ (s)', 'velocity $v_0$ (m s$^{-1}$)', 'Velocity Over Time', save_path + '05_obstacle_avoidance_velocity_time.pdf')
+
+elif static_obstacle:
+    number_followers = 2
+    save_path = './src/my_truckie/results/plots/'
+    
+    state_ego_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy').T[0][:2]
+    time_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array.npy')
+    index = 10
+    time_array = time_array[index:]
+    time_array = time_array - time_array[0]
+    state_ego_array = state_ego_array[:, index:]
+    
+    combined_state_arrays = [state_ego_array]  # Initialize with ego vehicle state
+    
+    for i in range(1, number_followers + 1):
+        state_follower_array = np.load(f'/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_{i}_state_array.npy').T[0][:2]
+        state_follower_array = state_follower_array[:, index:]
+        combined_state_arrays.append(state_follower_array)
+    
+    combined_state_array = np.vstack(combined_state_arrays)
+    
+    legend_labels = ['$x$ - Ego vehicle', '$y$ - Ego vehicle']
+    for i in range(1, number_followers + 1):
+        legend_labels.extend([f'$x$ - Follower {i} vehicle', f'$y$ - Follower {i} vehicle'])
+    
+    data_over_time(time_array, combined_state_array, legend_labels, 'time $t$ (s)', 'position (m)', 'States Over Time', save_path + '05_obstacle_static_position_time.pdf')
+
+
+    legend_labels = ['$(x,y)$ - Ego vehicle']
+    for i in range(1, number_followers + 1):
+        legend_labels.extend([f'$(x,y)$ - Follower {i} vehicle'])
+    x_array = np.vstack((combined_state_array[0], combined_state_array[2], combined_state_array[4]))
+    y_array = np.vstack((combined_state_array[1], combined_state_array[3], combined_state_array[5]))
+    data_over_data(x_array, y_array, legend_labels, '$x$ (m)', '$y$ (m)', 'States Over Time', save_path + '05_obstacle_static_position.pdf')
+
+    vel_ego_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy').T[0][2]
+    vel_ego_vehicle = vel_ego_vehicle[index:]
+    vel_arrays = [vel_ego_vehicle]
+    
+    for i in range(1, number_followers + 1):
+        vel_follower_vehicle = np.load(f'/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_{i}_state_array.npy').T[0][2]
+        vel_follower_vehicle = vel_follower_vehicle[index:]
+        vel_arrays.append(vel_follower_vehicle)
+    
+    vel_array = np.vstack(vel_arrays)
+    
+    legend_labels = ['Ego vehicle']
+    for i in range(1, number_followers + 1):
+        legend_labels.append(f'Follower {i} vehicle')
+    
+    data_over_time(time_array, vel_array, legend_labels, 'time $t$ (s)', 'velocity $v_0$ (m s$^{-1}$)', 'Velocity Over Time', save_path + '05_obstacle_static_velocity_time.pdf')
