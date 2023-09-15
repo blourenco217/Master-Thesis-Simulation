@@ -12,25 +12,25 @@
       <arg name="use_sim_time" value="true"/>
     </include>
 
-    <arg name="x" default="0"/>
+    <!-- <arg name="x" default="0"/>
     <arg name="y" default="10"/>
-    <arg name="z" default="0"/>
+    <arg name="z" default="0"/> -->
 
     <!-- Spawn the robot model into Gazebo -->
-    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    <!-- <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
       args="-urdf -param robot_description -model truck -x $(arg x) -y $(arg y) -z $(arg z) -Y 0">
-    </node>
+    </node> -->
 
     <!-- Load controllers -->
-    <rosparam file="$(find my_truckie)/config/joints.yaml" command="load" />
+    <!-- <rosparam file="$(find my_truckie)/config/joints.yaml" command="load" /> -->
 
     <!-- Launch the controllers -->
-    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+    <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
       output="screen"
       args="joint_state_controller
       hitch_joint_position_controller
-      --timeout 60">
-    </node>
+      - -timeout 60">
+    </node> -->
     <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
       output="screen" ns="/truck"
       args="- -namespace=/truck
