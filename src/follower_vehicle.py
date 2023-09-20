@@ -111,7 +111,7 @@ class FollowerCACCNode(object):
 
                     vel_ref = np.sqrt(self.ego_vel[0]**2 + self.ego_vel[1]**2)
 
-                    length_truck = 8
+                    length_truck = 10
 
                     # if vel_ref < 2:
                     #     # rospy.loginfo("ATTENZIONNEEE PICKPOCKET")
@@ -137,6 +137,12 @@ class FollowerCACCNode(object):
                         
 
                     self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, vel_ref, 0, 0, 0)
+                
+                # for i in range(self.controller.N):
+                #     if self.follower_id > 1:
+                #         self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.proceder_pose[0], self.proceder_pose[1])
+                #     else:
+                #         self.controller.args['p'] = ca.vertcat(self.controller.args['p'], self.ego_pose[0], self.ego_pose[1])
 
                 self.controller.args['x0'] = ca.vertcat(
                     ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),

@@ -18,8 +18,20 @@ The goal of this simulation environment is to evaluate the proposed approach for
 - **launch**: Contains launch files for starting the simulation environment.
    - `world.launch`: Launches the simulation highway environment.
    - `platoon.launch`: Launches the simulation environment for basic lane-changing maneuvers within a platoon.
+      usage example
+      ```bash
+      roslaunch my_truckie platoon.launch init_y:="-9.5" init_z:="0"
+      ```
    - `static_obstacle.launch`: Initiates the simulation environment for static obstacle avoidance scenarios.
-   - `overtake.launch`: Sets up the simulation environment for overtaking scenarios involving dynamic obstacles.
+      usage example
+      ```bash
+      roslaunch my_truckie static_obstacle.launch
+      ```
+   - `dynamic_obstacle.launch`: Sets up the simulation environment for overtaking scenarios involving dynamic obstacles.
+      usage example
+      ```bash
+      roslaunch my_truckie dynamic_obstacle.launch
+      ```
    - `braking.launch`: Launches the simulation environment to evaluate the ego vehicle's response to abrupt braking scenarios.
    - `rviz.launch`: Launches the RViz visualization tool for real-time visualization of the simulation environment.
 - **config**: Configuration files for setting up simulation parameters and vehicle properties.

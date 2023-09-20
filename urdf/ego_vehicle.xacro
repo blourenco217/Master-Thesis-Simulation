@@ -28,7 +28,7 @@
                 izz="0.0001" />
         </inertial>
         <visual>
-            <origin xyz="0 0 0" rpy="0 0 0" />
+            <origin xyz="0 0 0.1" rpy="0 0 0" />
             <geometry>
                 <box size="0.001 0.001 0.001" />
             </geometry>
@@ -36,7 +36,7 @@
     </link>
 
     <joint name="base_footprint_joint" type="fixed">
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        <origin xyz="0 0 0.1" rpy="0 0 0" />
         <parent link="base_footprint"/>
         <child link="tractor" />
     </joint>

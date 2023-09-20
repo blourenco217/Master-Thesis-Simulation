@@ -37,7 +37,8 @@ class mpc(object):
         objective = 0                            # cost function
         objective_constrained = 0 
         dynamics_constraints = X[:,0] - INITIAL
-        safety_distance_constraint = []
+
+        non_convex_constraint = []
 
 
         for k in range(N):
@@ -55,6 +56,10 @@ class mpc(object):
             vector_velocity = ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1])
             objective_constrained += ((x_k - ref_x).T  @ (x_k - ref_x))+ (u_k).T  @ (u_k) + \
                      3.7**(k) * ca.dot(vector_velocity, vector_to_obstacle)
+
+            ego_pos = ca.vertcat(x_k[0], x_k[1])
+            h = (ego_pos - OBSTACLE_POS).T @ (ego_pos - OBSTACLE_POS) - 2**2
+            non_convex_constraint = ca.vertcat(non_convex_constraint, h)
             
             # # safety distance constraint from proceeder
             # proceeder_pose_k = PROCEEDER_POSE[:, k]
@@ -63,7 +68,8 @@ class mpc(object):
 
         
         opt_variables = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)))
-        constraints = ca.vertcat(dynamics_constraints, safety_distance_constraint)
+        constraints = ca.vertcat(dynamics_constraints)
+        
         P = ca.vertcat(INITIAL, REF.reshape((-1, 1)))
         # P = ca.vertcat(INITIAL, REF.reshape((-1, 1)), PROCEEDER_POSE.reshape((-1, 1)))
 
@@ -76,6 +82,7 @@ class mpc(object):
         }
 
         P_constrained = ca.vertcat(INITIAL, REF.reshape((-1, 1)), OBSTACLE_POS.reshape((-1, 1)), OBSTACLE_VEL.reshape((-1, 1)))
+        constraints_constrained = ca.vertcat(dynamics_constraints, non_convex_constraint)
 
         # P_constrained = ca.vertcat(INITIAL, REF.reshape((-1, 1)), PROCEEDER_POSE.reshape((-1, 1)), OBSTACLE_POS.reshape((-1, 1)), OBSTACLE_VEL.reshape((-1, 1)))
 
@@ -129,12 +136,24 @@ class mpc(object):
         lbg = ca.DM.zeros((self.nx*(self.N + 1), 1))  # constraints lower bound
         ubg = ca.DM.zeros((self.nx*(self.N + 1), 1))  # constraints upper bound
         
+        self.args = {
+            'lbg': lbg,
+            'ubg': ubg,
+            'lbx': lbx,
+            'ubx': ubx
+        }
+
+        lbg = ca.DM.zeros((self.nx*(self.N + 1), 1))  # constraints lower bound
+        ubg = ca.DM.zeros((self.nx*(self.N + 1), 1))  # constraints upper bound
+        
         # lbg = ca.DM.zeros((self.nx*(self.N + 1) + self.N, 1))  # constraints lower bound
         # ubg = ca.DM.zeros((self.nx*(self.N + 1) + self.N, 1))  # constraints upper bound
 
         # lbg[: -self.N] = 0
         # ubg[: -self.N] = ca.inf
-        self.args = {
+
+
+        self.args_constrained = {
             'lbg': lbg,
             'ubg': ubg,
             'lbx': lbx,
