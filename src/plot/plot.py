@@ -92,8 +92,9 @@ def data_over_data(x_arrays, y_arrays, legend_labels, x_label, y_label, title, s
 lane_changing = False
 obstacle_avoidance = False
 static_obstacle = False
-dynamic_obstacle = True
-braking = False
+dynamic_obstacle = False
+braking = True
+comparison_baseline = False
 
 # Obstacle avoidance - Overtake scenario: preprocessing data
 if lane_changing:
@@ -279,3 +280,74 @@ elif dynamic_obstacle:
         legend_labels.append(f'Follower {i} vehicle')
     
     data_over_time(time_array, vel_array, legend_labels, 'time $t$ (s)', 'velocity $v_0$ (m s$^{-1}$)', 'Velocity Over Time', save_path + '05_obstacle_dynamic_velocity_time.pdf')
+
+elif comparison_baseline:
+    save_path = './src/my_truckie/results/plots/'
+    time_array_proposed = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array_comparison_proposed.npy')
+    input_array_proposed = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_input_array_comparison_proposed.npy').T[0][:2]
+
+    index = 10
+    time_array_proposed = time_array_proposed[index:]
+    time_array_proposed = time_array_proposed - time_array_proposed[0]
+    input_array_proposed = input_array_proposed[:, index:]
+
+    data_over_time(time_array_proposed, input_array_proposed, ['$u_0$ (m s$^{-2}$)', '$u_1$ (rad s$^{-1}$)'], 'time $t$ (s)', 'input values', 'Inputs Over Time', save_path + '05_comparison_proposed_input_time.pdf')
+
+
+
+    time_array_baseline = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array_comparison_baseline.npy')
+    input_array_baseline = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_input_array_comparison_baseline.npy').T[0][:2]
+
+    time_array_baseline = time_array_baseline[index:]
+    time_array_baseline = time_array_baseline - time_array_baseline[0]
+    input_array_baseline = input_array_baseline[:, index:]
+
+    data_over_time(time_array_baseline, input_array_baseline, ['$u_0$ (m s$^{-2}$)', '$u_1$ (rad s$^{-1}$)'], 'time $t$ (s)', 'input values', 'Inputs Over Time', save_path + '05_comparison_baseline_input_time.pdf')
+
+elif braking:
+    save_path = './src/my_truckie/results/plots/'
+    save_path = './src/my_truckie/results/plots/'
+    state_ego_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy').T[0][:2]  # Extract first two arrays: x and y 
+    time_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array.npy')
+    state_follower_1_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_state_array.npy').T[0][:2]  # Extract first two arrays
+    state_follower_2_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_2_state_array.npy').T[0][:2]  # Extract first two arrays
+    state_follower_3_array = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_3_state_array.npy').T[0][:2]  # Extract first two arrays
+
+    print(state_ego_array.shape, state_follower_1_array.shape, state_follower_2_array.shape, state_follower_3_array.shape)
+    index = 10
+    time_array = time_array[index:]
+    time_array = time_array - time_array[0]
+    state_ego_array = state_ego_array[:,index:]  # discard first state
+    state_follower_1_array = state_follower_1_array[:,index:] # discard first state
+    state_follower_2_array = state_follower_2_array[:,index:] # discard first state
+    state_follower_3_array = state_follower_3_array[:,index:] # discard first state
+    
+    time_array = time_array[:225]
+    state_ego_array = state_ego_array[:, :225]
+    state_follower_1_array = state_follower_1_array[:, :225]
+    state_follower_2_array = state_follower_2_array[:, :225]
+    state_follower_3_array = state_follower_3_array[:, :225]
+    print(state_ego_array.shape, state_follower_1_array.shape, state_follower_2_array.shape, state_follower_3_array.shape, time_array.shape)
+    combined_state_array = np.vstack((state_ego_array, state_follower_1_array, state_follower_2_array, state_follower_3_array))
+    legend_labels = ['$x$ - Ego vehicle', '$y$ - Ego vehicle', '$x$ - Follower vehicle 1', '$y$ - Follower vehicle 1', '$x$ - Follower vehicle 2', '$y$ - Follower vehicle 2', '$x$ - Follower vehicle 3', '$y$ - Follower vehicle 3']
+    data_over_time(time_array, combined_state_array , legend_labels, 'time $t$ (s)', 'position (m)', 'States Over Time', save_path + '05_braking_time.pdf')
+
+    legend_labels = ['$(x,y)$ - Ego vehicle', '$(x,y)$ - Follower vehicle 1', '$(x,y)$ - Follower vehicle 2', '$(x,y)$ - Follower vehicle 3']
+    data_over_data(np.vstack((state_ego_array[0], state_follower_1_array[0], state_follower_2_array[0], state_follower_3_array[0])), np.vstack((state_ego_array[1], state_follower_1_array[1], state_follower_2_array[1], state_follower_3_array[1])),
+                   legend_labels, '$x$ (m)', '$y$ (m)', 'States Over Time', save_path + '05_braking_position.pdf')
+    vel_ego_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy').T[0][2]
+    vel_ego_vehicle = vel_ego_vehicle[index:]
+    vel_ego_vehicle = vel_ego_vehicle[:225]
+    vel_follower_1_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_1_state_array.npy').T[0][2]
+    vel_follower_1_vehicle = vel_follower_1_vehicle[index:]
+    vel_follower_1_vehicle = vel_follower_1_vehicle[:225]
+    vel_follower_2_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_2_state_array.npy').T[0][2]
+    vel_follower_2_vehicle = vel_follower_2_vehicle[index:]
+    vel_follower_2_vehicle = vel_follower_2_vehicle[:225]
+    vel_follower_3_vehicle = np.load('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/follower_3_state_array.npy').T[0][2]
+    vel_follower_3_vehicle = vel_follower_3_vehicle[index:]
+    vel_follower_3_vehicle = vel_follower_3_vehicle[:225]
+    vel_array = np.vstack((vel_ego_vehicle, vel_follower_1_vehicle, vel_follower_2_vehicle, vel_follower_3_vehicle))
+
+    legend_labels = ['Ego vehicle', 'Follower vehicle 1', 'Follower vehicle 2', 'Follower vehicle 3']
+    data_over_time(time_array, vel_array, legend_labels, 'time $t$ (s)', 'velocity $v_0$ (m s$^{-1}$)', 'Velocity Over Time', save_path + '05_braking_velocity_time.pdf')

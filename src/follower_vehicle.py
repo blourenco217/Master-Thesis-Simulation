@@ -11,6 +11,7 @@ from std_msgs.msg import Float64
 from tf.transformations import euler_from_quaternion
 from control_msgs.msg import JointControllerState
 import sys 
+import time
 
 class FollowerCACCNode(object):
     def __init__(self, namespace = 'follower_vehicle'):
@@ -158,8 +159,16 @@ class FollowerCACCNode(object):
                             p = self.controller.args['p']
                         )
                 # print(self.controller.solver_unconstrained.stats()['return_status'])
-                u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
-                X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
+                
+
+                if vel_ref < 0.6:
+                    time_ego_stopped = time.time()
+                    u = ca.DM.zeros((self.controller.nu, self.controller.N))
+                    time_detected = time.time()
+                    rospy.loginfo("FOLLOWER {} DETECTED EGO STOPPED IN {}".format(self.follower_id, time_detected - time_ego_stopped))
+                else:
+                    u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N + 1):], self.controller.nu, self.controller.N)
+                    X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
                 
                 self.u0 = u
                 # print(X0[0,1], X0[1,1])

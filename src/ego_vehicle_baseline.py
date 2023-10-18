@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from model.truck_dynamics import vehicle_model
-from controller.mpc import mpc
+from controller.mpc_baseline import mpc
 from avoidance.obstacle_extraction import ObstacleExtraction
 
 import rospy
@@ -13,7 +13,7 @@ from std_msgs.msg import Float64
 from sensor_msgs.msg import LaserScan
 from tf.transformations import euler_from_quaternion
 from control_msgs.msg import JointControllerState
-
+import time
 
 
 class EgoVehicleController(object):
@@ -34,6 +34,7 @@ class EgoVehicleController(object):
         self.controller = mpc(self.vehicle, dt, N = 10)
         self.u0 = ca.DM.zeros((self.controller.nu, self.controller.N))
         self.x0 = ca.DM.zeros((self.controller.nx))
+        self.omega = ca.DM.zeros((self.controller.N))
 
         self.twist_cmd = Twist()
 
@@ -80,6 +81,7 @@ class EgoVehicleController(object):
 
                 self.cmd_vel_pub.publish(self.twist_cmd)
                 self.controller.args['p'] = ca.vertcat(self.controller.args['x0'])
+                
 
             
                 for i in range(self.controller.N):
@@ -93,12 +95,22 @@ class EgoVehicleController(object):
                 # for _ in range(1, 2 + len(self.vehicle.vehicle)):
                 #     self.controller.args['p'] = ca.vertcat(self.controller.args['p'], 0)
 
-                # optimization variable current state
-                self.controller.args['x0'] = ca.vertcat(
-                    ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
-                    ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
-                )
+                
                 if self.obstacle_extraction.obstacle_ahead and index > 0:
+                    start_time_avoidance = time.time()
+                    # self.controller.args_constrained['x0'] = ca.vertcat(
+                    #     ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
+                    #     ca.reshape(self.u0, self.controller.nu*self.controller.N, 1),
+                    #     ca.reshape(self.omega, self.controller.N, 1)
+                    # )
+                    self.controller.args_constrained['x0'] = [self.ego_pose[0], self.ego_pose[1], float(self.x0[2]), float(self.x0[3]), self.ego_pose[2], float(self.x0[5])]
+                    self.controller.args_constrained['p'] = ca.vertcat(self.controller.args_constrained['x0'])
+
+                    for i in range(self.controller.N):
+                        x_ref = 150
+                        y_ref = -9.5
+                        self.controller.args_constrained['p'] = ca.vertcat(self.controller.args_constrained['p'], x_ref, y_ref, 0,  0, 0, 0)
+
                     index -= 1
                     leftmost_boundary = np.array(self.obstacle_extraction.leftmost_boundary).reshape(2,)
                     predicted_velocity = np.array(self.obstacle_extraction.predicted_velocity).reshape(2,)
@@ -122,27 +134,38 @@ class EgoVehicleController(object):
                     
                     # rospy.loginfo("predicted_velocity: {}".format(predicted_velocity))
                     
-                    self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[0])
-                    self.controller.args['p'] = ca.vertcat(self.controller.args['p'], leftmost_boundary[1])
-                    self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[0])
-                    self.controller.args['p'] = ca.vertcat(self.controller.args['p'], predicted_velocity[1])
+                    self.controller.args_constrained['p'] = ca.vertcat(self.controller.args_constrained['p'], leftmost_boundary[0])
+                    self.controller.args_constrained['p'] = ca.vertcat(self.controller.args_constrained['p'], leftmost_boundary[1])
+                    self.controller.args_constrained['p'] = ca.vertcat(self.controller.args_constrained['p'], predicted_velocity[0])
+                    self.controller.args_constrained['p'] = ca.vertcat(self.controller.args_constrained['p'], predicted_velocity[1])
+
+                    self.controller.args_constrained['x0'] = ca.vertcat(
+                        ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
+                        ca.reshape(self.u0, self.controller.nu*self.controller.N, 1),
+                        ca.reshape(self.omega, self.controller.N, 1)
+                    )
                     
                     sol = self.controller.solver_constrained(
-                        x0 = self.controller.args['x0'],
-                            lbx = self.controller.args['lbx'],
-                            ubx = self.controller.args['ubx'],
-                            lbg = self.controller.args['lbg'],
-                            ubg = self.controller.args['ubg'],
-                            p = self.controller.args['p']
+                        x0 = self.controller.args_constrained['x0'],
+                            lbx = self.controller.args_constrained['lbx'],
+                            ubx = self.controller.args_constrained['ubx'],
+                            lbg = self.controller.args_constrained['lbg'],
+                            ubg = self.controller.args_constrained['ubg'],
+                            p = self.controller.args_constrained['p']
                         )
                     # rospy.loginfo("SOLVER CONSTRAINT: {}".format(self.controller.solver_constrained.stats()['return_status']))
                     self.obstacle_extraction.obstacle_ahead = False
 
+                    self.omega = ca.reshape(sol['x'][self.controller.nx * (self.controller.N+1) + self.controller.nu * self.controller.N:], 1, self.controller.N)
+
                 else:
+                    # optimization variable current state
+                    self.controller.args['x0'] = ca.vertcat(
+                        ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
+                        ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
+                    )
                     if self.overtaken is False:
                         # print leftmost_boundary
-                        rospy.loginfo(leftmost_boundary[0])
-                        rospy.loginfo(self.ego_pose[0])
                         rospy.loginfo("COUCOU!!!!!!!!!")
                         for i in range(self.controller.N):
                             y_ref =  leftmost_boundary[1] + 25
@@ -158,8 +181,14 @@ class EgoVehicleController(object):
                             overtake = True
                             self.overtaken = True
                             index = 1
+                            end_time_avoidance = time.time()
+                            rospy.loginfo("AVOIDANCE TIME: {}".format(end_time_avoidance - start_time_avoidance))
 
                     # rospy.loginfo("NO OBSTACLE AHEAD")
+                    self.controller.args['x0'] = ca.vertcat(
+                        ca.reshape(X0, self.controller.nx*(self.controller.N+1), 1),
+                        ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
+                    )
                     sol = self.controller.solver_unconstrained(
                             x0 = self.controller.args['x0'],
                             lbx = self.controller.args['lbx'],
@@ -170,10 +199,9 @@ class EgoVehicleController(object):
                         )
                     # rospy.loginfo("SOLVER UNCONSTRAINT: {}".format(self.controller.solver_unconstrained.stats()['return_status']))
                 
-                # print(self.controller.solver_unconstrained.stats()['return_status'])
-                u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N+1):], self.controller.nu, self.controller.N)
+                u = ca.reshape(sol['x'][self.controller.nx * (self.controller.N+1): self.controller.nx * (self.controller.N+1) + self.controller.nu * self.controller.N], self.controller.nu, self.controller.N)
                 X0 = ca.reshape(sol['x'][: self.controller.nx * (self.controller.N+1)], self.controller.nx, self.controller.N+1)
-                # print(X0)
+
                 # print(X0.shape)
 
                 self.u0 = u
@@ -209,6 +237,9 @@ class EgoVehicleController(object):
                 np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy', state_array)
                 np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_input_array.npy', input_array)
                 np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array.npy', time_array)
+
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_input_array_comparison_baseline.npy', input_array)
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array_comparison_baseline.npy', time_array)
 
 class MoveAndPrintPosition:
     def __init__(self):

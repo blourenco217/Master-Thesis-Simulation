@@ -13,7 +13,7 @@ from std_msgs.msg import Float64
 from sensor_msgs.msg import LaserScan
 from tf.transformations import euler_from_quaternion
 from control_msgs.msg import JointControllerState
-
+import time
 
 
 class EgoVehicleController(object):
@@ -83,7 +83,7 @@ class EgoVehicleController(object):
 
             
                 for i in range(self.controller.N):
-                    x_ref = 150
+                    x_ref = 80
                     y_ref = -9.5
                     self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, 0,  0, 0, 0)
 
@@ -99,6 +99,7 @@ class EgoVehicleController(object):
                     ca.reshape(self.u0, self.controller.nu*self.controller.N, 1)
                 )
                 if self.obstacle_extraction.obstacle_ahead and index > 0:
+                    start_time_avoidance = time.time()
                     index -= 1
                     leftmost_boundary = np.array(self.obstacle_extraction.leftmost_boundary).reshape(2,)
                     predicted_velocity = np.array(self.obstacle_extraction.predicted_velocity).reshape(2,)
@@ -140,9 +141,6 @@ class EgoVehicleController(object):
 
                 else:
                     if self.overtaken is False:
-                        # print leftmost_boundary
-                        rospy.loginfo(leftmost_boundary[0])
-                        rospy.loginfo(self.ego_pose[0])
                         rospy.loginfo("COUCOU!!!!!!!!!")
                         for i in range(self.controller.N):
                             y_ref =  leftmost_boundary[1] + 25
@@ -158,6 +156,9 @@ class EgoVehicleController(object):
                             overtake = True
                             self.overtaken = True
                             index = 1
+                            end_time_avoidance = time.time()
+                            rospy.loginfo("AVOIDANCE TIME: {}".format(end_time_avoidance - start_time_avoidance))
+
 
                     # rospy.loginfo("NO OBSTACLE AHEAD")
                     sol = self.controller.solver_unconstrained(
@@ -209,6 +210,9 @@ class EgoVehicleController(object):
                 np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_state_array.npy', state_array)
                 np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_input_array.npy', input_array)
                 np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array.npy', time_array)
+
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_input_array_comparison_proposed.npy', input_array)
+                np.save('/media/psf/simulation/catkin_ws/src/my_truckie/results/arrays/ego_time_array_comparison_proposed.npy', time_array)
 
 class MoveAndPrintPosition:
     def __init__(self):

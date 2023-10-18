@@ -25,15 +25,15 @@
   </group>
 
   <!-- second obstacle -->
-  <group ns="/npc2">
+  <!-- <group ns="/npc2">
     <param name="tf_prefix" value="npc2_tf" />
-    <param name="/npc2/robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/npc.urdf.xacro"/>
+    <param name="/npc2/robot_description" command="$(find xacro)/xacro - -inorder $(find my_truckie)/urdf/npc.urdf.xacro"/>
       <arg name="init_pose" value="-x 0 -y 3.5 -z 0" />
       <node name="urdf_spawner_2" pkg="gazebo_ros" type="spawn_model"
         args="$(arg init_pose) -unpause -urdf -model npc2 -param robot_description " respawn="false" output="screen">
       </node>
     <node name="control_npc" pkg="my_truckie" type="spawn_obstacles.py" args="npc2 -3" output="screen" />
-  </group>
+  </group> -->
 
   <group ns="/ego_vehicle">
     <param name="tf_prefix" value="ego_vehicle_tf" />

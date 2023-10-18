@@ -33,12 +33,16 @@ class mpc(object):
 
         PROCEEDER_POSE = ca.MX.sym('PROCEEDER_POSE', 2, N)  # proceeder pose (2, N) - should be over the horizon
 
+        OMEGA = ca.MX.sym('OMEGA', N)                    # penalty parameter
+
         self.initiate_weights()
         objective = 0                            # cost function
         objective_constrained = 0 
         dynamics_constraints = X[:,0] - INITIAL
 
         non_convex_constraint = []
+
+        gamma_ = 0.7
 
 
         for k in range(N):
@@ -50,16 +54,18 @@ class mpc(object):
             st_next_RK4 = rk4(vehicle.dynamics, x_k[:4 + len(vehicle.vehicle)], u_k[:2], self.dt) 
             dynamics_constraints = ca.vertcat(dynamics_constraints, st_next - st_next_RK4)
 
-            prediction_obstacle_position = (OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
-            # prediction_obstacle_position = (OBSTACLE_POS[0] + k * 2 * self.dt, OBSTACLE_POS[1])
-            vector_to_obstacle = ca.vertcat(prediction_obstacle_position[0] - x_k[0], prediction_obstacle_position[1] + 2 - x_k[1])
-            vector_velocity = ca.vertcat(INITIAL[0] - x_k[0], INITIAL[1] - x_k[1])
-            objective_constrained += ((x_k - ref_x).T  @ (x_k - ref_x))+ (u_k).T  @ (u_k) + \
-                     3.7**(k) * ca.dot(vector_velocity, vector_to_obstacle)
+            omega_k = OMEGA[k]
+            prediction_obstacle_position = ca.vertcat(OBSTACLE_POS[0] + k * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + k * OBSTACLE_VEL[1] * self.dt)
+            ego_position = ca.vertcat(x_k[0], x_k[1])
+            h = (ego_position - prediction_obstacle_position).T @ (ego_position - prediction_obstacle_position) - 2**2
 
-            ego_pos = ca.vertcat(x_k[0], x_k[1])
-            h = (ego_pos - OBSTACLE_POS).T @ (ego_pos - OBSTACLE_POS) - 2**2
-            non_convex_constraint = ca.vertcat(non_convex_constraint, h)
+            x_k_next = rk4(vehicle.dynamics, x_k[:4 + len(vehicle.vehicle)], u_k[:2], self.dt)
+            ego_position_next = ca.vertcat(x_k_next[0], x_k_next[1])
+            prediction_obstacle_position_next = ca.vertcat(OBSTACLE_POS[0] + (k+1) * OBSTACLE_VEL[0] * self.dt, OBSTACLE_POS[1] + (k+1) * OBSTACLE_VEL[1] * self.dt)
+            h_next = (ego_position_next - prediction_obstacle_position_next).T @ (ego_position_next - prediction_obstacle_position_next) - 2**2
+            non_convex_constraint = ca.vertcat(non_convex_constraint, h_next - omega_k*gamma_*h)
+
+            objective_constrained += ((x_k - ref_x).T @ self.Q @ (x_k - ref_x))+ (u_k).T @ self.R @ (u_k) + omega_k**2
             
             # # safety distance constraint from proceeder
             # proceeder_pose_k = PROCEEDER_POSE[:, k]
@@ -81,6 +87,7 @@ class mpc(object):
             'p': P
         }
 
+        opt_variables_constrained = ca.vertcat(X.reshape((-1, 1)), U.reshape((-1, 1)), OMEGA.reshape((-1, 1)))
         P_constrained = ca.vertcat(INITIAL, REF.reshape((-1, 1)), OBSTACLE_POS.reshape((-1, 1)), OBSTACLE_VEL.reshape((-1, 1)))
         constraints_constrained = ca.vertcat(dynamics_constraints, non_convex_constraint)
 
@@ -88,8 +95,8 @@ class mpc(object):
 
         nlp_constrained = {
             'f': objective_constrained,
-            'x': opt_variables,
-            'g': constraints,
+            'x': opt_variables_constrained,
+            'g': constraints_constrained,
             'p': P_constrained
         }
     
@@ -103,7 +110,7 @@ class mpc(object):
     def initiate_weights(self):
         weights = [100, 150, 10, 0, 10]
         for _ in range(1,len(self.vehicle.vehicle)):
-            weights.append(0)
+            weights.append(10)
         self.Q = ca.diagcat(*weights)      # state weights matrix
         self.R = ca.diagcat(5, 5)      # control weights matrix
 
@@ -143,15 +150,15 @@ class mpc(object):
             'ubx': ubx
         }
 
-        lbg = ca.DM.zeros((self.nx*(self.N + 1), 1))  # constraints lower bound
-        ubg = ca.DM.zeros((self.nx*(self.N + 1), 1))  # constraints upper bound
+        for _ in range(self.N):
+            lbx = ca.vertcat(lbx, 0)
+            ubx = ca.vertcat(ubx, ca.inf)
         
-        # lbg = ca.DM.zeros((self.nx*(self.N + 1) + self.N, 1))  # constraints lower bound
-        # ubg = ca.DM.zeros((self.nx*(self.N + 1) + self.N, 1))  # constraints upper bound
+        lbg = ca.DM.zeros((self.nx*(self.N + 1) + self.N, 1))  # constraints lower bound
+        ubg = ca.DM.zeros((self.nx*(self.N + 1) + self.N, 1))  # constraints upper bound
 
-        # lbg[: -self.N] = 0
-        # ubg[: -self.N] = ca.inf
-
+        lbg[: -self.N] = 0
+        ubg[: -self.N] = ca.inf
 
         self.args_constrained = {
             'lbg': lbg,

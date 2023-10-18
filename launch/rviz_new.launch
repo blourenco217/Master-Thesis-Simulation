@@ -1,0 +1,41 @@
+<launch>
+  <!--Gazebo empty world launch file-->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    	<arg name="debug" value="false" />
+    	<arg name="gui" value="true" />
+    	<arg name="paused" value="false"/>
+    	<arg name="use_sim_time" value="false"/>
+    	<arg name="headless" value="false"/>
+    	<arg name="verbose" value="true"/>
+  </include>
+
+  <!--Robot Description from URDF-->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find my_truckie)/urdf/ego_vehicle.xacro"/>
+  <param name="use_gui" value="true"/>
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="basefootprint_tf_broadcaster"
+            args="0 0 0 0 0 0 map base_footprint" />
+
+    
+  <node pkg="tf2_ros" type="static_transform_publisher" name="baselink_tf_broadcaster" args="0 0 0 0 0 0 map base_link" />
+
+    <!-- Launch the TF broadcaster for tractor -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tractor_tf_broadcaster" args="0 0 0 0 0 0 map tractor" />
+
+    <!-- Launch the TF broadcaster for trailer -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="trailer_tf_broadcaster" args="0 0 0 0 0 0 map trailer" />
+    
+
+  <!--Nodes-->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
+  <!-- <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/> -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" args="-urdf -param robot_description -model mybot -verbose" output="screen"/> -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+  args="-urdf -model mybot -param robot_description"
+  respawn="false" output="screen"/>
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_truckie)/rviz/ego_vehicle.rviz" required="true"/>
+
+</launch>
