@@ -28,13 +28,13 @@ Nonlinear Model Predictive Control (NMPC), Cooperative Adaptive Cruise Control (
       ```bash
       roslaunch my_truckie static_obstacle.launch
       ```
-   - `dynamic_obstacle.launch`: Sets up the simulation environment for overtaking scenarios involving dynamic obstacles.
+   - `dynamic_obstacles.launch`: Sets up the simulation environment for overtaking scenarios involving dynamic obstacles.
       ```bash
-      roslaunch my_truckie dynamic_obstacle.launch
+      roslaunch my_truckie dynamic_obstacles.launch
       ```
    - `braking.launch`: Launches the simulation environment to evaluate the ego vehicle's response to abrupt braking scenarios.
       ```bash
-      roslaunch my_truckie platoon.launch init_y:="-9.5" init_z:="0"
+      roslaunch my_truckie braking.launch init_y:="-9.5" init_z:="0"
       ```
    - `rviz.launch`: Launches the RViz visualization tool for real-time visualization of the simulation environment.
       ```bash

@@ -83,8 +83,9 @@ class EgoVehicleController(object):
 
             
                 for i in range(self.controller.N):
-                    x_ref = 80
-                    y_ref = -9.5
+                    # x_ref = 80
+                    x_ref = 100
+                    y_ref = -5
                     self.controller.args['p'] = ca.vertcat(self.controller.args['p'], x_ref, y_ref, 0,  0, 0, 0)
 
                 # for i in range(self.controller.N):
